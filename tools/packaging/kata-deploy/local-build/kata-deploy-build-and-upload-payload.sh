@@ -15,10 +15,13 @@ cp ${KATA_DEPLOY_ARTIFACT} ${KATA_DEPLOY_DIR}
 
 pushd ${KATA_DEPLOY_DIR}
 
-IMAGE_TAG="${REGISTRY}:kata-containers-$(git rev-parse HEAD)"
+IMAGE_TAG="${REGISTRY}:kata-containers-$(git rev-parse HEAD)-$(uname -m)"
 
 echo "Building the image"
-docker build --tag ${IMAGE_TAG} .
+docker build \
+	--build-arg IMG_NAME=fedora \
+	--build-arg IMG_TAG=37 \
+	--tag ${IMAGE_TAG} .
 
 echo "Pushing the image to quay.io"
 docker push ${IMAGE_TAG}
@@ -27,7 +30,10 @@ if [ -n "${TAG}" ]; then
 	ADDITIONAL_TAG="${REGISTRY}:${TAG}"
 
 	echo "Building the ${ADDITIONAL_TAG} image"
-	docker build  --tag ${ADDITIONAL_TAG} .
+	docker build \
+		--build-arg IMG_NAME=fedora \
+		--build-arg IMG_TAG=37 \
+		--tag ${ADDITIONAL_TAG} .
 
 	echo "Pushing the image ${ADDITIONAL_TAG} to quay.io"
 	docker push ${ADDITIONAL_TAG}
