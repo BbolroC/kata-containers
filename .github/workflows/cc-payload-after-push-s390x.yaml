@@ -2,7 +2,7 @@ name: CI | Publish s390x payload for Confidential Containers
 on:
   push:
     branches:
-      - payload-s390x
+      - temporarily-disabled
 
 jobs:
   build-asset:
