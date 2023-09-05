@@ -249,6 +249,7 @@ function main() {
         deploy-kata-snp) deploy_kata "snp" ;;
         deploy-kata-tdx) deploy_kata "tdx" ;;
         deploy-kata-garm) deploy_kata "garm" ;;
+        deploy-kata-zvsi) deploy_kata "zvsi" ;;
         run-tests) run_tests ;;
         run-tests-kcli) run_tests "kcli" ;;
         cleanup-kcli) cleanup "kcli" ;;
@@ -256,6 +257,7 @@ function main() {
         cleanup-snp) cleanup "snp" ;;
         cleanup-tdx) cleanup "tdx" ;;
         cleanup-garm) cleanup "garm" ;;
+        cleanup-zvsi) cleanup "zvsi" ;;
         delete-cluster) cleanup "aks" ;;
         delete-cluster-kcli) delete_cluster_kcli ;;
         *) >&2 echo "Invalid argument"; exit 2 ;;
