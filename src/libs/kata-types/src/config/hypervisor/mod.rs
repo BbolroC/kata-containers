@@ -599,6 +599,10 @@ pub struct MemoryInfo {
     #[serde(default)]
     pub memory_slots: u32,
 
+    /// Default maximum memory in MiB per SB / VM
+    #[serde(default)]
+    pub default_maxmemory: u32,
+
     /// Enable file based guest memory support.
     ///
     /// The default is an empty string which will disable this feature. In the case of virtio-fs,
