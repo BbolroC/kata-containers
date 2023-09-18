@@ -4,7 +4,6 @@
 //
 
 use anyhow::{anyhow, Context, Result};
-
 use crate::{
     hypervisor_persist::HypervisorState, HypervisorConfig, MemoryConfig,
     VcpuThreadIds, VsockDevice, HYPERVISOR_QEMU,
@@ -15,7 +14,10 @@ use kata_types::{
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::os::unix::io::AsRawFd;
+use std::process::Child;
 use persist::sandbox_persist::Persist;
+use super::cmdline_generator::QemuCmdLine;
 
 const VSOCK_SCHEME: &str = "vsock";
 
@@ -23,6 +25,8 @@ const VSOCK_SCHEME: &str = "vsock";
 pub struct QemuInner {
     /// sandbox id
     id: String,
+
+    qemu_process: Option<Child>,
 
     config: HypervisorConfig,
     devices: Vec<DeviceType>,
@@ -32,6 +36,7 @@ impl QemuInner {
     pub fn new() -> QemuInner {
         QemuInner {
             id: "".to_string(),
+            qemu_process: None,
             config: Default::default(),
             devices: Vec::new(),
         }
@@ -57,28 +62,68 @@ impl QemuInner {
         let vm_path = [KATA_PATH, self.id.as_str()].join("/");
         std::fs::create_dir_all(vm_path)?;
 
+        let mut cmdline = QemuCmdLine::new(&self.id, &self.config)?;
+
+        for device in &self.devices {
+            match device {
+                DeviceType::ShareFs(share_fs_dev) => {
+                    if share_fs_dev.config.fs_type == "virtio-fs" {
+                        cmdline.add_virtiofs_share(
+                            &share_fs_dev.config.sock_path,
+                            &share_fs_dev.config.mount_tag,
+                            share_fs_dev.config.queue_size,
+                        );
+                    }
+                }
+                DeviceType::Vsock(vsock_dev) => {
+                    cmdline.add_vsock(
+                        vsock_dev.config.vhost_fd.as_raw_fd(),
+                        vsock_dev.config.guest_cid,
+                    )?;
+                }
+                DeviceType::Block(block_dev) => {
+                    if block_dev.config.path_on_host == self.config.boot_info.initrd {
+                        // If this block device represents initrd we ignore it here, it
+                        // will be handled elsewhere by adding `-initrd` to the qemu
+                        // command line.
+                        continue;
+                    }
+                    match block_dev.config.driver_option.as_str() {
+                        "nvdimm" => cmdline.add_nvdimm(
+                            &block_dev.config.path_on_host,
+                            block_dev.config.is_readonly,
+                        )?,
+                        unsupported => {
+                            info!(sl!(), "unsupported block device driver: {}", unsupported)
+                        }
+                    }
+                }
+                _ => info!(sl!(), "qemu cmdline: unsupported device: {:?}", device),
+            }
+        }
+        // To get access to the VM console for debugging, enable the following
+        // line and replace its argument appropriately (open a terminal, run
+        // `tty` in it to get its device file path and use it as the argument).
+        //cmdline.add_serial_console("/dev/pts/23");
+
+        info!(sl!(), "qemu args: {}", cmdline.build()?.join(" "));
         let mut command = std::process::Command::new(&self.config.path);
+        command.args(cmdline.build()?);
 
-        command
-            .arg("-kernel")
-            .arg(&self.config.boot_info.kernel)
-            .arg("-m")
-            .arg(format!("{}M", &self.config.memory_info.default_memory))
-            .arg("-initrd")
-            .arg(&self.config.boot_info.initrd)
-            .arg("-vga")
-            .arg("none")
-            .arg("-nodefaults")
-            .arg("-nographic");
-
-        command.spawn()?;
+        info!(sl!(), "qemu cmd: {:?}", command);
+        self.qemu_process = Some(command.spawn()?);
 
         Ok(())
     }
 
     pub(crate) fn stop_vm(&mut self) -> Result<()> {
         info!(sl!(), "Stopping QEMU VM");
-        todo!()
+        if let Some(ref mut qemu_process) = &mut self.qemu_process {
+            info!(sl!(), "QemuInner::stop_vm(): kill()'ing qemu");
+            qemu_process.kill().map_err(anyhow::Error::from)
+        } else {
+            Err(anyhow!("qemu process not running"))
+        }
     }
 
     pub(crate) fn pause_vm(&self) -> Result<()> {
@@ -121,7 +166,16 @@ impl QemuInner {
 
     pub(crate) async fn get_vmm_master_tid(&self) -> Result<u32> {
         info!(sl!(), "QemuInner::get_vmm_master_tid()");
-        todo!()
+        if let Some(qemu_process) = &self.qemu_process {
+            info!(
+                sl!(),
+                "QemuInner::get_vmm_master_tid(): returning {}",
+                qemu_process.id()
+            );
+            Ok(qemu_process.id())
+        } else {
+            Err(anyhow!("qemu process not running"))
+        }
     }
 
     pub(crate) async fn get_ns_path(&self) -> Result<String> {
