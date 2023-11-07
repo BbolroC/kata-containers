@@ -3,40 +3,60 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-use anyhow::Result;
-
-use kata_types::capabilities::{Capabilities, CapabilityBits};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use std::collections::HashMap;
 
 use crate::{
     hypervisor_persist::HypervisorState, HypervisorConfig, VcpuThreadIds, VsockDevice,
     HYPERVISOR_QEMU,
 };
+use kata_types::{
+    capabilities::{Capabilities, CapabilityBits},
+    config::KATA_PATH,
+};
 use persist::sandbox_persist::Persist;
 
 
 const VSOCK_SCHEME: &str = "vsock";
-const VSOCK_AGENT_CID: u32 = 3;
-const VSOCK_AGENT_PORT: u32 = 1024;
+
 #[derive(Debug)]
 pub struct QemuInner {
+    /// sandbox id
+    id: String,
+
     config: HypervisorConfig,
+    devices: Vec<DeviceType>,
 }
 
 impl QemuInner {
     pub fn new() -> QemuInner {
         QemuInner {
+            id: "".to_string(),
             config: Default::default(),
+            devices: Vec::new(),
         }
     }
 
-    pub(crate) async fn prepare_vm(&mut self, _id: &str, _netns: Option<String>) -> Result<()> {
+    pub(crate) async fn prepare_vm(&mut self, id: &str, _netns: Option<String>) -> Result<()> {
         info!(sl!(), "Preparing QEMU VM");
+
+        self.id = id.to_string();
+
+        self.devices.push(DeviceType::Vsock(
+            VsockDevice::new(self.id.clone())
+                .await
+                .context("qemu: create agent vsock")?,
+        ));
+
         Ok(())
     }
 
     pub(crate) async fn start_vm(&mut self, _timeout: i32) -> Result<()> {
         info!(sl!(), "Starting QEMU VM");
+
+        let vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        std::fs::create_dir_all(vm_path)?;
 
         let mut command = std::process::Command::new(&self.config.path);
 
@@ -76,14 +96,14 @@ impl QemuInner {
         todo!()
     }
 
-    /// TODO: using a single hardcoded CID is clearly not adequate in the long
-    /// run. Use the recently added VsockConfig infrastructure to fix this.
     pub(crate) async fn get_agent_socket(&self) -> Result<String> {
         info!(sl!(), "QemuInner::get_agent_socket()");
-        Ok(format!(
-            "{}://{}:{}",
-            VSOCK_SCHEME, VSOCK_AGENT_CID, VSOCK_AGENT_PORT
-        ))
+        let guest_cid = match &self.get_agent_vsock_dev() {
+            Some(device) => device.config.guest_cid,
+            None => return Err(anyhow!("uninitialized agent vsock".to_owned())),
+        };
+
+        Ok(format!("{}://{}", VSOCK_SCHEME, guest_cid))
     }
 
     pub(crate) async fn disconnect(&mut self) {
@@ -93,7 +113,11 @@ impl QemuInner {
 
     pub(crate) async fn get_thread_ids(&self) -> Result<VcpuThreadIds> {
         info!(sl!(), "QemuInner::get_thread_ids()");
-        todo!()
+        //todo!()
+        let vcpu_thread_ids: VcpuThreadIds = VcpuThreadIds {
+            vcpus: HashMap::new(),
+        };
+        Ok(vcpu_thread_ids)
     }
 
     pub(crate) async fn get_vmm_master_tid(&self) -> Result<u32> {
@@ -103,16 +127,28 @@ impl QemuInner {
 
     pub(crate) async fn get_ns_path(&self) -> Result<String> {
         info!(sl!(), "QemuInner::get_ns_path()");
-        todo!()
+        Ok(format!(
+            "/proc/{}/task/{}/ns",
+            std::process::id(),
+            std::process::id()
+        ))
     }
 
     pub(crate) async fn cleanup(&self) -> Result<()> {
         info!(sl!(), "QemuInner::cleanup()");
-        todo!()
+        let vm_path = [KATA_PATH, self.id.as_str()].join("/");
+        std::fs::remove_dir_all(vm_path)?;
+        Ok(())
     }
 
-    pub(crate) async fn resize_vcpu(&self, _old_vcpus: u32, _new_vcpus: u32) -> Result<(u32, u32)> {
-        info!(sl!(), "QemuInner::resize_vcpu()");
+    pub(crate) async fn resize_vcpu(&self, old_vcpus: u32, new_vcpus: u32) -> Result<(u32, u32)> {
+        info!(
+            sl!(),
+            "QemuInner::resize_vcpu(): {} -> {}", old_vcpus, new_vcpus
+        );
+        if new_vcpus == old_vcpus {
+            return Ok((old_vcpus, new_vcpus));
+        }
         todo!()
     }
 
@@ -126,7 +162,7 @@ impl QemuInner {
     }
 
     pub(crate) async fn get_jailer_root(&self) -> Result<String> {
-        todo!()
+        Ok("".into())
     }
 
     pub(crate) async fn capabilities(&self) -> Result<Capabilities> {
@@ -155,12 +191,30 @@ use crate::device::DeviceType;
 impl QemuInner {
     pub(crate) async fn add_device(&mut self, device: DeviceType) -> Result<DeviceType> {
         info!(sl!(), "QemuInner::add_device() {}", device);
+        self.devices.push(device);
         Ok(device)
     }
 
     pub(crate) async fn remove_device(&mut self, device: DeviceType) -> Result<()> {
         info!(sl!(), "QemuInner::remove_device() {} ", device);
-        todo!()
+        Err(anyhow!("QemuInner::remove_device({}): Not yet implemented", device))
+    }
+}
+
+// private helpers
+impl QemuInner {
+    fn get_agent_vsock_dev(&self) -> Option<&crate::VsockDevice> {
+        self.devices.iter().find_map(|dev| {
+            if let DeviceType::Vsock(vsock_dev) = dev {
+                if vsock_dev.id == self.id {
+                    Some(vsock_dev)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
     }
 
     pub(crate) async fn update_device(&mut self, device: DeviceType) -> Result<()> {
