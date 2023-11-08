@@ -16,6 +16,9 @@ KATA_DEPLOY_ARTIFACT="${1:-"kata-static.tar.xz"}"
 REGISTRY="${2:-"quay.io/kata-containers/kata-deploy"}"
 TAG="${3:-}"
 
+# Make registery name lowercase
+REGISTRY=$(echo ${REGISTRY} | tr '[:upper:]' '[:lower:]')
+
 echo "Copying ${KATA_DEPLOY_ARTIFACT} to ${KATA_DEPLOY_DIR}"
 cp ${KATA_DEPLOY_ARTIFACT} ${KATA_DEPLOY_DIR}
 

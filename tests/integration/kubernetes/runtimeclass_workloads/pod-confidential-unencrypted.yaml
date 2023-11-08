@@ -28,6 +28,6 @@ spec:
       runtimeClassName: kata
       containers:
       - name: "confidential-unencrypted"
-        image: ghcr.io/kata-containers/test-images:unencrypted-nightly
+        image: ghcr.io/bbolroc/test-images:unencrypted-999999
         imagePullPolicy: Always
 
