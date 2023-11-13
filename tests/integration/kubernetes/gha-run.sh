@@ -98,6 +98,8 @@ function configure_snapshotter() {
 function deploy_kata() {
     platform="${1}"
     ensure_yq
+    # Make registery name lowercase
+    DOCKER_REPO=$(echo ${DOCKER_REPO} | tr '[:upper:]' '[:lower:]')
 
     [ "$platform" = "kcli" ] && \
         export KUBECONFIG="$HOME/.kcli/clusters/${CLUSTER_NAME:-kata-k8s}/auth/kubeconfig"
@@ -178,6 +180,8 @@ function cleanup() {
     platform="${1}"
     test_type="${2:-k8s}"
     ensure_yq
+    # Make registery name lowercase
+    DOCKER_REPO=$(echo ${DOCKER_REPO} | tr '[:upper:]' '[:lower:]')
 
     [ "$platform" = "kcli" ] && \
         export KUBECONFIG="$HOME/.kcli/clusters/${CLUSTER_NAME:-kata-k8s}/auth/kubeconfig"
