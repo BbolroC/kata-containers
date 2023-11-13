@@ -41,6 +41,7 @@ jobs:
       PR_NUMBER: ${{ inputs.pr-number }}
       KATA_HYPERVISOR: ${{ matrix.vmm }}
       KUBERNETES: "k3s"
+      SNAPSHOTTER: ${{ matrix.snapshotter }}
       USING_NFD: "true"
       TARGET_ARCH: "s390x"
     steps:
@@ -78,5 +79,5 @@ jobs:
       - name: Take a post-action
         if: always()
         run: |
-          bash tests/integration/kubernetes/gha-run.sh cleanup-zvsi
+          bash tests/integration/kubernetes/gha-run.sh cleanup-zvsi || true
           ${HOME}/script/post_action.sh ubuntu-2204
