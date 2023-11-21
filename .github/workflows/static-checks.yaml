@@ -1,10 +1,13 @@
 on:
-  pull_request:
-    types:
-      - opened
-      - edited
-      - reopened
-      - synchronize
+#  pull_request:
+#    types:
+#      - opened
+#      - edited
+#      - reopened
+#      - synchronize
+  push:
+    branches:
+      - migrate-unit-test-s390x
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -35,7 +38,6 @@ jobs:
           fi
 
   build-checks:
-    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +80,16 @@ jobs:
             install-libseccomp: yes
           - component: runk
             install-libseccomp: yes
+        instance:
+          - "ubuntu-20.04"
+          - "s390x"
+    runs-on: ${{ matrix.instance }}
     steps:
+      - name: Adjust a permission for repo
+        run: |
+          sudo chown -R $USER:$USER $GITHUB_WORKSPACE
+        if: ${{ matrix.instance == 's390x' }}
+
       - name: Checkout the code
         uses: actions/checkout@v4
         with:

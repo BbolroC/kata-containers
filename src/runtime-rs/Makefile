@@ -35,6 +35,9 @@ test:
 install:
 	@echo "s390x is not currently supported"
 	exit 0
+check:
+	@echo "s390x is not currently supported"
+	exit 0
 else ifeq ($(ARCH), powerpc64le)
 default:
 	@echo "PowerPC 64 LE is not currently supported"
@@ -52,6 +55,8 @@ default: runtime show-header
 test: static-checks-build
 	@cargo test --all --target $(TRIPLE) $(EXTRA_RUSTFEATURES) -- --nocapture
 install: install-runtime install-configs
+##TARGET check: run test
+check: $(GENERATED_FILES) standard_rust_check
 endif
 
 ifeq (,$(realpath $(ARCH_FILE)))
@@ -460,9 +465,6 @@ clean:
 
 vendor:
 	@cargo vendor
-
-##TARGET check: run test
-check: $(GENERATED_FILES) standard_rust_check
 
 ##TARGET run: build and run agent
 run:
