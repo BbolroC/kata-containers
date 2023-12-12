@@ -700,6 +700,7 @@ pub struct QemuCmdLine<'a> {
     knobs: Knobs,
 
     devices: Vec<Box<dyn ToQemuParams>>,
+    fds: Vec<RawFd>,
 }
 
 impl<'a> QemuCmdLine<'a> {
@@ -714,6 +715,7 @@ impl<'a> QemuCmdLine<'a> {
             cpu: Cpu::new(config),
             knobs: Knobs::new(config),
             devices: Vec::new(),
+            fds: Vec::new(),
         })
     }
 
@@ -784,6 +786,7 @@ impl<'a> QemuCmdLine<'a> {
         }
 
         self.devices.push(Box::new(vhost_vsock_pci));
+        self.fds.push(vhostfd);
         Ok(())
     }
 
@@ -814,6 +817,16 @@ impl<'a> QemuCmdLine<'a> {
         let nvdimm = DeviceNvdimm::new("TODO", is_readonly);
         self.devices.push(Box::new(nvdimm));
 
+        Ok(())
+    }
+
+    pub fn close_fds(&mut self) -> Result<()> {
+        for fd in &self.fds {
+            if let Err(err) = nix::unistd::close(*fd) {
+                info!(sl!(), "failed to close fd {}: {}", fd, err);
+            }
+        }
+        self.fds.clear();
         Ok(())
     }
 

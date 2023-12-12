@@ -115,6 +115,7 @@ impl QemuInner {
 
         info!(sl!(), "qemu cmd: {:?}", command);
         self.qemu_process = Some(command.spawn()?);
+        cmdline.close_fds()?;
 
         Ok(())
     }
