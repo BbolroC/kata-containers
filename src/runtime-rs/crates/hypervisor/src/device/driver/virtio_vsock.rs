@@ -118,14 +118,20 @@ const CID_RETRY_COUNT: u32 = 50;
 
 impl VsockDevice {
     pub async fn new(id: String) -> Result<Self> {
-        let (guest_cid, _vhost_fd) = generate_vhost_vsock_cid()
-            .await
-            .context("generate vhost vsock cid failed")?;
-
         Ok(Self {
             id,
-            config: VsockConfig { guest_cid },
+            config: VsockConfig {
+                guest_cid: libc::VMADDR_CID_ANY,
+            },
         })
+    }
+
+    pub async fn init_config(&mut self) -> Result<File> {
+        let (guest_cid, vhost_fd) = generate_vhost_vsock_cid()
+            .await
+            .context("generate vhost vsock cid failed")?;
+        self.config.guest_cid = guest_cid;
+        Ok(vhost_fd)
     }
 }
 

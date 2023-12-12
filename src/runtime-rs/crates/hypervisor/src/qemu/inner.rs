@@ -78,8 +78,9 @@ impl QemuInner {
                     }
                 }
                 DeviceType::Vsock(vsock_dev) => {
+                    let vhost_fd = vsock_dev.init_config().await?;
                     cmdline.add_vsock(
-                        vsock_dev.config.vhost_fd.as_raw_fd(),
+                        vhost_fd.as_raw_fd(),
                         vsock_dev.config.guest_cid,
                     )?;
                 }
