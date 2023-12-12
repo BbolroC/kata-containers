@@ -595,6 +595,7 @@ impl ToQemuParams for DeviceNvdimm {
 }
 
 struct VhostVsockPci {
+    id: String,
     vhostfd: RawFd,
     guest_cid: u32,
     disable_modern: bool,
@@ -603,6 +604,7 @@ struct VhostVsockPci {
 impl VhostVsockPci {
     fn new(vhostfd: RawFd, guest_cid: u32) -> VhostVsockPci {
         VhostVsockPci {
+            id: format!("vsock-{}", guest_cid),
             vhostfd,
             guest_cid,
             disable_modern: false,
@@ -623,6 +625,7 @@ impl ToQemuParams for VhostVsockPci {
             params.push("disable-modern=true".to_owned());
         }
         params.push(format!("vhostfd={}", self.vhostfd));
+        params.push(format!("id={}", self.id));
         params.push(format!("guest-cid={}", self.guest_cid));
 
         Ok(vec!["-device".to_owned(), params.join(",")])
