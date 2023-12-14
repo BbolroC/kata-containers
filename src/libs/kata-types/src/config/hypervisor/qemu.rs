@@ -13,7 +13,7 @@ use crate::config::default::MAX_QEMU_VCPUS;
 use crate::config::default::MIN_QEMU_MEMORY_SIZE_MB;
 
 use crate::config::hypervisor::VIRTIO_BLK_MMIO;
-use crate::config::{ConfigPlugin, TomlConfig};
+use crate::config::{ConfigPlugin, TomlConfig, VM_ROOTFS_FILESYSTEM_EXT4};
 use crate::{eother, resolve_path, validate_path};
 
 /// Hypervisor name for qemu, used to index `TomlConfig::hypervisor`.
@@ -56,7 +56,7 @@ impl ConfigPlugin for QemuConfig {
             }
             resolve_path!(qemu.path, "Qemu binary path `{}` is invalid: {}")?;
             if qemu.boot_info.rootfs_type.is_empty() {
-                qemu.boot_info.rootfs_type = default::DEFAULT_QEMU_ROOTFS_TYPE.to_string();
+                qemu.boot_info.rootfs_type = VM_ROOTFS_FILESYSTEM_EXT4.to_string();
             }
             if qemu.ctlpath.is_empty() {
                 qemu.ctlpath = default::DEFAULT_QEMU_CONTROL_PATH.to_string();
