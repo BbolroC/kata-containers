@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use crate::{
     hypervisor_persist::HypervisorState, HypervisorConfig, MemoryConfig,
     VcpuThreadIds, VsockDevice, HYPERVISOR_QEMU,
@@ -44,14 +44,7 @@ impl QemuInner {
 
     pub(crate) async fn prepare_vm(&mut self, id: &str, _netns: Option<String>) -> Result<()> {
         info!(sl!(), "Preparing QEMU VM");
-
         self.id = id.to_string();
-
-        self.devices.push(DeviceType::Vsock(
-            VsockDevice::new(self.id.clone())
-                .await
-                .context("qemu: create agent vsock")?,
-        ));
 
         Ok(())
     }
@@ -64,7 +57,7 @@ impl QemuInner {
 
         let mut cmdline = QemuCmdLine::new(&self.id, &self.config)?;
 
-        for device in &self.devices {
+        for device in &mut self.devices {
             match device {
                 DeviceType::ShareFs(share_fs_dev) => {
                     if share_fs_dev.config.fs_type == "virtio-fs" {
@@ -76,8 +69,9 @@ impl QemuInner {
                     }
                 }
                 DeviceType::Vsock(vsock_dev) => {
+                    let vhost_fd = vsock_dev.init_config().await?;
                     cmdline.add_vsock(
-                        vsock_dev.config.vhost_fd.as_raw_fd(),
+                        vhost_fd.as_raw_fd(),
                         vsock_dev.config.guest_cid,
                     )?;
                 }
@@ -275,11 +269,7 @@ impl QemuInner {
     fn get_agent_vsock_dev(&self) -> Option<&crate::VsockDevice> {
         self.devices.iter().find_map(|dev| {
             if let DeviceType::Vsock(vsock_dev) = dev {
-                if vsock_dev.id == self.id {
-                    Some(vsock_dev)
-                } else {
-                    None
-                }
+                Some(vsock_dev)
             } else {
                 None
             }
