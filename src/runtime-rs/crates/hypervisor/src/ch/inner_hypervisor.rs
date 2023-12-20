@@ -23,7 +23,7 @@ use futures::executor::block_on;
 use futures::future::join_all;
 use kata_sys_util::protection::{available_guest_protection, GuestProtection};
 use kata_types::capabilities::{Capabilities, CapabilityBits};
-use kata_types::config::default::DEFAULT_CH_ROOTFS_TYPE;
+use kata_types::config::VM_ROOTFS_FILESYSTEM_EXT4;
 use lazy_static::lazy_static;
 use nix::sched::{setns, CloneFlags};
 use serde::{Deserialize, Serialize};
@@ -135,7 +135,7 @@ impl CloudHypervisorInner {
         };
 
         let rootfs_type = match cfg.boot_info.rootfs_type.is_empty() {
-            true => DEFAULT_CH_ROOTFS_TYPE,
+            true => VM_ROOTFS_FILESYSTEM_EXT4,
             false => &cfg.boot_info.rootfs_type,
         };
 

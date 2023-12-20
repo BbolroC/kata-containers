@@ -55,6 +55,14 @@ pub const LOG_VPORT_OPTION: &str = "agent.log_vport";
 /// Option of setting the container's pipe size
 pub const CONTAINER_PIPE_SIZE_OPTION: &str = "agent.container_pipe_size";
 
+// Option of which filesystem to use as rootfs type
+/// Root file system type: ext4
+pub const VM_ROOTFS_FILESYSTEM_EXT4: &str = "ext4";
+/// Root file system type: xfs
+pub const VM_ROOTFS_FILESYSTEM_XFS: &str = "xfs";
+/// Root file system type: erofs
+pub const VM_ROOTFS_FILESYSTEM_EROFS: &str = "erofs";
+
 /// Trait to manipulate global Kata configuration information.
 pub trait ConfigPlugin: Send + Sync {
     /// Get the plugin name.
