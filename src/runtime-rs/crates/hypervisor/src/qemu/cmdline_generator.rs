@@ -9,6 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use nix::fcntl;
 use std::fs::read_to_string;
 use std::os::unix::io::RawFd;
+use async_trait::async_trait;
 
 // These should have been called MiB and GiB for better readability but the
 // more fitting names unfortunately generate linter warnings.
@@ -25,12 +26,13 @@ const GI_B: u64 = 1024 * MI_B;
 // All structs implement a simple ToQemuParams interface which allows their
 // user to convert them to actual qemu command line parameter strings.
 
-trait ToQemuParams {
+#[async_trait]
+trait ToQemuParams: Send + Sync {
     // OsString could look as a better fit here, however since foreign strings
     // come to this code from the outside as Strings already and this code adds
     // nothing but UTF-8 (in fact probably just ASCII) switching to OsStrings
     // now seems pointless.
-    fn qemu_params(&self) -> Result<Vec<String>>;
+    async fn qemu_params(&self) -> Result<Vec<String>>;
 }
 
 #[derive(Debug)]
@@ -73,8 +75,9 @@ impl Kernel {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Kernel {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut result = Vec::new();
 
         // QemuConfig::adjust_config() ensures that kernel path is never empty
@@ -163,8 +166,9 @@ impl Memory {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Memory {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
 
         if self.size.trailing_zeros() < 19 {
@@ -182,7 +186,7 @@ impl ToQemuParams for Memory {
         let mut retval = vec!["-m".to_owned(), params.join(",")];
 
         if let Some(mem_file) = &self.memory_backend_file {
-            retval.append(&mut mem_file.qemu_params()?);
+            retval.append(&mut mem_file.qemu_params().await?);
         }
         Ok(retval)
     }
@@ -203,8 +207,9 @@ impl Smp {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Smp {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         // CpuInfo::adjust_config() seems to ensure that both vcpu numbers
         // will have sanitised non-zero values
@@ -228,8 +233,9 @@ impl Cpu {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Cpu {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         // '-cpu host' has always to be used when using KVM
         let mut params = vec!["host".to_owned()];
         params.push(self.cpu_features.clone());
@@ -282,8 +288,9 @@ impl Machine {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Machine {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push(self.r#type.clone());
         params.push(format!("accel={}", self.accel));
@@ -325,8 +332,9 @@ impl Knobs {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Knobs {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut result = Vec::new();
         result.push("-vga".to_owned());
         result.push(self.vga.clone());
@@ -386,8 +394,9 @@ impl MemoryBackendFile {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for MemoryBackendFile {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("memory-backend-file".to_owned());
         params.push(format!("id={}", self.id));
@@ -410,8 +419,9 @@ struct TcpSocketOpts {
     port: String,
 }
 
+#[async_trait]
 impl ToQemuParams for TcpSocketOpts {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         if !self.host.is_empty() {
             params.push(format!("host={}", self.host));
@@ -427,8 +437,9 @@ struct UnixSocketOpts {
     path: String,
 }
 
+#[async_trait]
 impl ToQemuParams for UnixSocketOpts {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push(format!("path={}", self.path));
         Ok(params)
@@ -443,13 +454,15 @@ enum ProtocolOptions {
     Unix(UnixSocketOpts),
 }
 
+#[async_trait]
 impl ToQemuParams for ProtocolOptions {
-    fn qemu_params(&self) -> Result<Vec<String>> {
-        match self {
-            ProtocolOptions::Tcp(tcp_opts) => tcp_opts.qemu_params(),
-            ProtocolOptions::Unix(unix_opts) => unix_opts.qemu_params(),
-            ProtocolOptions::None => Ok(Vec::new()),
-        }
+    async fn qemu_params(&self) -> Result<Vec<String>> {
+        let result = match self {
+            ProtocolOptions::Tcp(tcp_opts) => tcp_opts.qemu_params().await?,
+            ProtocolOptions::Unix(unix_opts) => unix_opts.qemu_params().await?,
+            ProtocolOptions::None => Vec::new(),
+        };
+        Ok(result)
     }
 }
 
@@ -489,8 +502,9 @@ impl ChardevSocket {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for ChardevSocket {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("socket".to_owned());
         params.push(format!("id={}", self.id));
@@ -500,7 +514,7 @@ impl ToQemuParams for ChardevSocket {
                 params.push("wait=on".to_owned());
             }
         }
-        params.append(&mut self.protocol_options.qemu_params()?);
+        params.append(&mut self.protocol_options.qemu_params().await?);
         Ok(vec!["-chardev".to_owned(), params.join(",")])
     }
 }
@@ -548,8 +562,9 @@ impl DeviceVhostUserFsPci {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for DeviceVhostUserFsPci {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("vhost-user-fs-pci".to_owned());
         params.push(format!("chardev={}", self.chardev));
@@ -582,8 +597,9 @@ impl DeviceNvdimm {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for DeviceNvdimm {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("nvdimm".to_owned());
         params.push(format!("memdev={}", self.memdev));
@@ -617,8 +633,9 @@ impl VhostVsockPci {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for VhostVsockPci {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("vhost-vsock-pci".to_owned());
         if self.disable_modern {
@@ -645,8 +662,9 @@ impl NumaNode {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for NumaNode {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
         params.push("node".to_owned());
         params.push(format!("memdev={}", self.memdev));
@@ -669,8 +687,9 @@ impl Serial {
     }
 }
 
+#[async_trait]
 impl ToQemuParams for Serial {
-    fn qemu_params(&self) -> Result<Vec<String>> {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
         Ok(vec!["-serial".to_owned(), self.character_device.clone()])
     }
 }
@@ -827,24 +846,24 @@ impl<'a> QemuCmdLine<'a> {
         ));
     }
 
-    pub fn build(&self) -> Result<Vec<String>> {
+    pub async fn build(&self) -> Result<Vec<String>> {
         let mut result = Vec::new();
 
         result.append(&mut vec![
             "-name".to_owned(),
             format!("sandbox-{}", self.id),
         ]);
-        result.append(&mut self.kernel.qemu_params()?);
-        result.append(&mut self.smp.qemu_params()?);
-        result.append(&mut self.machine.qemu_params()?);
-        result.append(&mut self.cpu.qemu_params()?);
-        result.append(&mut self.memory.qemu_params()?);
+        result.append(&mut self.kernel.qemu_params().await?);
+        result.append(&mut self.smp.qemu_params().await?);
+        result.append(&mut self.machine.qemu_params().await?);
+        result.append(&mut self.cpu.qemu_params().await?);
+        result.append(&mut self.memory.qemu_params().await?);
 
         for device in &self.devices {
-            result.append(&mut device.qemu_params()?);
+            result.append(&mut device.qemu_params().await?);
         }
 
-        result.append(&mut self.knobs.qemu_params()?);
+        result.append(&mut self.knobs.qemu_params().await?);
 
         Ok(result)
     }

@@ -100,9 +100,9 @@ impl QemuInner {
         // `tty` in it to get its device file path and use it as the argument).
         //cmdline.add_serial_console("/dev/pts/23");
 
-        info!(sl!(), "qemu args: {}", cmdline.build()?.join(" "));
+        info!(sl!(), "qemu args: {}", cmdline.build().await?.join(" "));
         let mut command = std::process::Command::new(&self.config.path);
-        command.args(cmdline.build()?);
+        command.args(cmdline.build().await?);
 
         info!(sl!(), "qemu cmd: {:?}", command);
         self.qemu_process = Some(command.spawn()?);
@@ -254,7 +254,7 @@ use crate::device::DeviceType;
 impl QemuInner {
     pub(crate) async fn add_device(&mut self, device: DeviceType) -> Result<DeviceType> {
         info!(sl!(), "QemuInner::add_device() {}", device);
-        self.devices.push(device);
+        self.devices.push(device.clone());
         Ok(device)
     }
 
@@ -266,7 +266,7 @@ impl QemuInner {
 
 // private helpers
 impl QemuInner {
-    fn get_agent_vsock_dev(&self) -> Option<&crate::VsockDevice> {
+    fn get_agent_vsock_dev(&self) -> Option<&VsockDevice> {
         self.devices.iter().find_map(|dev| {
             if let DeviceType::Vsock(vsock_dev) = dev {
                 Some(vsock_dev)
