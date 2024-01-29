@@ -20,7 +20,6 @@ source "${packaging_root_dir}/scripts/lib.sh"
 readonly osbuilder_dir="$(cd "${repo_root_dir}/tools/osbuilder" && pwd)"
 
 export GOPATH=${GOPATH:-${HOME}/go}
-export AGENT_TARBALL=${AGENT_TARBALL:-}
 
 ARCH=${ARCH:-$(uname -m)}
 if [ $(uname -m) == "${ARCH}" ]; then
@@ -42,7 +41,6 @@ build_initrd() {
 		OS_VERSION="${os_version}" \
 		ROOTFS_BUILD_DEST="${builddir}/initrd-image" \
 		USE_DOCKER=1 \
-		AGENT_TARBALL="${AGENT_TARBALL}" \
 		AGENT_INIT="yes" \
 		AGENT_POLICY="${AGENT_POLICY:-}"
 	mv "kata-containers-initrd.img" "${install_dir}/${artifact_name}"
@@ -62,7 +60,6 @@ build_image() {
 		USE_DOCKER="1" \
 		IMG_OS_VERSION="${os_version}" \
 		ROOTFS_BUILD_DEST="${builddir}/rootfs-image" \
-		AGENT_TARBALL="${AGENT_TARBALL}" \
 		AGENT_POLICY="${AGENT_POLICY:-}"
 	mv -f "kata-containers.img" "${install_dir}/${artifact_name}"
 	if [ -e "root_hash.txt" ]; then

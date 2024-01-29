@@ -154,19 +154,19 @@ qemu-tdx-experimental-tarball:
 stratovirt-tarball:
 	${MAKE} $@-build
 
-rootfs-image-tarball: agent-tarball
+rootfs-image-tarball:
 	${MAKE} $@-build
 
-rootfs-image-tdx-tarball: agent-opa-tarball kernel-tdx-experimental-tarball
+rootfs-image-tdx-tarball: kernel-tdx-experimental-tarball
 	${MAKE} $@-build
 
-rootfs-initrd-mariner-tarball: agent-opa-tarball
+rootfs-initrd-mariner-tarball:
 	${MAKE} $@-build
 
-rootfs-initrd-sev-tarball: agent-opa-tarball kernel-sev-tarball
+rootfs-initrd-sev-tarball: kernel-sev-tarball
 	${MAKE} $@-build
 
-rootfs-initrd-tarball: agent-tarball
+rootfs-initrd-tarball:
 	${MAKE} $@-build
 
 runk-tarball:
