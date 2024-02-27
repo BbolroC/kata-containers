@@ -532,7 +532,8 @@ impl ToQemuParams for ChardevSocket {
 }
 
 #[derive(Debug)]
-struct DeviceVhostUserFsPci {
+struct DeviceVhostUserFs {
+    bus_type: String,
     chardev: String,
     tag: String,
     queue_size: u64,
@@ -540,9 +541,10 @@ struct DeviceVhostUserFsPci {
     iommu_platform: bool,
 }
 
-impl DeviceVhostUserFsPci {
-    fn new(chardev: &str, tag: &str) -> DeviceVhostUserFsPci {
-        DeviceVhostUserFsPci {
+impl DeviceVhostUserFs {
+    fn new(chardev: &str, tag: &str, bus_type: String) -> DeviceVhostUserFs {
+        DeviceVhostUserFs {
+            bus_type,
             chardev: chardev.to_owned(),
             tag: tag.to_owned(),
             queue_size: 0,
@@ -559,7 +561,9 @@ impl DeviceVhostUserFsPci {
             // throughout runtime-rs
             warn!(
                 sl!(),
-                "bad vhost-user-fs-pci queue_size (must be power of two): {}, ignoring", queue_size
+                "bad vhost-user-fs-{} queue_size (must be power of two): {}, ignoring",
+                self.bus_type,
+                queue_size
             );
         }
         self
@@ -578,10 +582,10 @@ impl DeviceVhostUserFsPci {
 }
 
 #[async_trait]
-impl ToQemuParams for DeviceVhostUserFsPci {
+impl ToQemuParams for DeviceVhostUserFs {
     async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
-        params.push("vhost-user-fs-pci".to_owned());
+        params.push(format!("vhost-user-fs-{}", self.bus_type));
         params.push(format!("chardev={}", self.chardev));
         params.push(format!("tag={}", self.tag));
         if self.queue_size != 0 {
@@ -755,15 +759,17 @@ impl ToQemuParams for BlockDeviceCcw {
     }
 }
 
-struct VhostVsockPci {
+struct VhostVsock {
+    bus_type: String,
     vhostfd: RawFd,
     guest_cid: u32,
     disable_modern: bool,
 }
 
-impl VhostVsockPci {
-    fn new(vhostfd: RawFd, guest_cid: u32) -> VhostVsockPci {
-        VhostVsockPci {
+impl VhostVsock {
+    fn new(vhostfd: RawFd, guest_cid: u32, bus_type: String) -> VhostVsock {
+        VhostVsock {
+            bus_type,
             vhostfd,
             guest_cid,
             disable_modern: false,
@@ -777,10 +783,10 @@ impl VhostVsockPci {
 }
 
 #[async_trait]
-impl ToQemuParams for VhostVsockPci {
+impl ToQemuParams for VhostVsock {
     async fn qemu_params(&self) -> Result<Vec<String>> {
         let mut params = Vec::new();
-        params.push("vhost-vsock-pci".to_owned());
+        params.push(format!("vhost-vsock-{}", self.bus_type));
         if self.disable_modern {
             params.push("disable-modern=true".to_owned());
         }
@@ -876,7 +882,7 @@ pub struct QemuCmdLine<'a> {
     smp: Smp,
     machine: Machine,
     cpu: Cpu,
-
+    bus_type: String,
     knobs: Knobs,
 
     devices: Vec<Box<dyn ToQemuParams>>,
@@ -884,6 +890,10 @@ pub struct QemuCmdLine<'a> {
 
 impl<'a> QemuCmdLine<'a> {
     pub fn new(id: &str, config: &'a HypervisorConfig) -> Result<QemuCmdLine<'a>> {
+        let mut bus_type = "pci";
+        if config.machine_info.machine_type == "s390-ccw-virtio" {
+            bus_type = "ccw";
+        }
         Ok(QemuCmdLine {
             id: id.to_string(),
             config,
@@ -892,6 +902,7 @@ impl<'a> QemuCmdLine<'a> {
             smp: Smp::new(config),
             machine: Machine::new(config),
             cpu: Cpu::new(config),
+            bus_type: bus_type.to_string(),
             knobs: Knobs::new(config),
             devices: Vec::new(),
         })
@@ -913,7 +924,8 @@ impl<'a> QemuCmdLine<'a> {
 
         self.devices.push(Box::new(virtiofsd_socket_chardev));
 
-        let mut virtiofs_device = DeviceVhostUserFsPci::new(chardev_name, mount_tag);
+        let mut virtiofs_device =
+            DeviceVhostUserFs::new(chardev_name, mount_tag, self.bus_type.clone());
         virtiofs_device.set_queue_size(queue_size);
         if self.config.device_info.enable_iommu_platform {
             virtiofs_device.set_iommu_platform(true);
@@ -936,7 +948,7 @@ impl<'a> QemuCmdLine<'a> {
     pub fn add_vsock(&mut self, vhostfd: RawFd, guest_cid: u32) -> Result<()> {
         clear_fd_flags(vhostfd).context("clear flags failed")?;
 
-        let mut vhost_vsock_pci = VhostVsockPci::new(vhostfd, guest_cid);
+        let mut vhost_vsock_pci = VhostVsock::new(vhostfd, guest_cid, self.bus_type.clone());
 
         if !self.config.disable_nesting_checks {
             let nested = match is_running_in_vm() {
