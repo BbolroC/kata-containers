@@ -822,6 +822,29 @@ impl ToQemuParams for NumaNode {
 }
 
 #[derive(Debug)]
+struct MemoryBackendMachine {
+    memdev: String,
+}
+
+impl MemoryBackendMachine {
+    fn new(memdev: &str) -> MemoryBackendMachine {
+        MemoryBackendMachine {
+            memdev: memdev.to_owned(),
+        }
+    }
+}
+
+#[async_trait]
+impl ToQemuParams for MemoryBackendMachine {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
+        Ok(vec![
+            "-machine".to_owned(),
+            format!("memory-backend={}", self.memdev),
+        ])
+    }
+}
+
+#[derive(Debug)]
 struct Serial {
     character_device: String,
 }
@@ -942,7 +965,18 @@ impl<'a> QemuCmdLine<'a> {
         self.memory.set_memory_backend_file(&mem_file);
 
         self.machine.set_nvdimm(true);
-        self.devices.push(Box::new(NumaNode::new(&mem_file.id)));
+        match self.bus_type.as_str() {
+            "pci" => {
+                self.devices.push(Box::new(NumaNode::new(&mem_file.id)));
+            }
+            "ccw" => {
+                self.devices
+                    .push(Box::new(MemoryBackendMachine::new(&mem_file.id)));
+            }
+            _ => {
+                warn!(sl!(), "unknown bus type: {}", self.bus_type);
+            }
+        }
     }
 
     pub fn add_vsock(&mut self, vhostfd: RawFd, guest_cid: u32) -> Result<()> {
