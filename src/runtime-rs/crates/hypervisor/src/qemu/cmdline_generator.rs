@@ -496,13 +496,11 @@ impl ChardevSocket {
         }
     }
 
-    #[allow(dead_code)]
     fn set_server(&mut self, server: bool) -> &mut Self {
         self.server = server;
         self
     }
 
-    #[allow(dead_code)]
     fn set_wait(&mut self, wait: bool) -> &mut Self {
         self.wait = wait;
         self
@@ -524,6 +522,8 @@ impl ToQemuParams for ChardevSocket {
             params.push("server=on".to_owned());
             if self.wait {
                 params.push("wait=on".to_owned());
+            } else {
+                params.push("wait=off".to_owned());
             }
         }
         params.append(&mut self.protocol_options.qemu_params().await?);
@@ -884,6 +884,57 @@ impl ToQemuParams for NetDevice {
     }
 }
 
+#[derive(Debug)]
+struct SerialDevice {
+    id: String,
+    bus_type: String,
+}
+
+impl SerialDevice {
+    fn new(id: &str, bus_type: String) -> SerialDevice {
+        SerialDevice {
+            id: id.to_owned(),
+            bus_type,
+        }
+    }
+}
+
+#[async_trait]
+impl ToQemuParams for SerialDevice {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
+        let mut params = Vec::new();
+        params.push(format!("virtio-serial-{}", self.bus_type));
+        params.push(format!("id={}", self.id));
+        Ok(vec!["-device".to_owned(), params.join(",")])
+    }
+}
+
+#[derive(Debug)]
+struct ConsoleDevice {
+    id: String,
+    chardev: String,
+}
+
+impl ConsoleDevice {
+    fn new(id: &str, chardev: &str) -> ConsoleDevice {
+        ConsoleDevice {
+            id: id.to_owned(),
+            chardev: chardev.to_owned(),
+        }
+    }
+}
+
+#[async_trait]
+impl ToQemuParams for ConsoleDevice {
+    async fn qemu_params(&self) -> Result<Vec<String>> {
+        let mut params = Vec::new();
+        params.push("virtconsole".to_owned());
+        params.push(format!("id={}", self.id));
+        params.push(format!("chardev={}", self.chardev));
+        Ok(vec!["-device".to_owned(), params.join(",")])
+    }
+}
+
 fn is_running_in_vm() -> Result<bool> {
     let res = read_to_string("/proc/cpuinfo")?
         .lines()
@@ -1070,6 +1121,23 @@ impl<'a> QemuCmdLine<'a> {
         let fds: Vec<File> = dev_files.into_iter().flatten().collect();
 
         Ok(fds)
+    }
+
+    pub fn add_console(&mut self, console_socket_path: &str) {
+        let serial_dev = SerialDevice::new("serial0", self.bus_type.clone());
+        self.devices.push(Box::new(serial_dev));
+
+        let chardev_name = "charconsole0";
+        let console_device = ConsoleDevice::new("console0", chardev_name);
+        self.devices.push(Box::new(console_device));
+
+        let mut console_socket_chardev = ChardevSocket::new(chardev_name);
+        console_socket_chardev.set_socket_opts(ProtocolOptions::Unix(UnixSocketOpts {
+            path: console_socket_path.to_owned(),
+        }));
+        console_socket_chardev.set_server(true);
+        console_socket_chardev.set_wait(false);
+        self.devices.push(Box::new(console_socket_chardev));
     }
 
     pub async fn build(&self) -> Result<Vec<String>> {
