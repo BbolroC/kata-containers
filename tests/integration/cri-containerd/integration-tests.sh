@@ -257,6 +257,11 @@ function TestContainerMemoryUpdate() {
 
 	if [[ "${KATA_HYPERVISOR}" != "qemu" ]] || [[ "${ARCH}" == "ppc64le" ]] || [[ "${ARCH}" == "s390x" ]]; then
 		return
+	elif [[ "${KATA_HYPERVISOR}" == "qemu-runtime-rs" ]]; then
+		# Remove TestContainerMemoryUpdate from passing_test
+		info "TestContainerMemoryUpdate skipped for qemu with runtime-rs"
+		info "Please check out https://github.com/kata-containers/kata-containers/issues/9375"
+		return
 	fi
 
 	for virtio_mem_enabled in 1 0; do
@@ -657,8 +662,14 @@ function main() {
 	TestContainerMemoryUpdate
 
 	if [[ "${ARCH}" != "ppc64le" ]]; then
-		TestKilledVmmCleanup
-		TestDeviceCgroup
+		if [[ "${KATA_HYPERVISOR}" == "qemu-runtime-rs" ]]; then
+			info "TestKilledVmmCleanup and TestDeviceCgroup skipped for qemu with runtime-rs"
+			info "Please check out https://github.com/kata-containers/kata-containers/issues/9375"
+			break
+		else
+			TestKilledVmmCleanup
+			TestDeviceCgroup
+		fi
 	fi
 
 	popd
