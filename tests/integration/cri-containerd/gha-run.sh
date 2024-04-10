@@ -32,6 +32,7 @@ function install_dependencies() {
 	)
 
 	sudo apt-get update
+	sudo apt-get -y remove docker-ce-cli || true
 	sudo apt-get -y install "${system_deps[@]}"
 
 	ensure_yq
