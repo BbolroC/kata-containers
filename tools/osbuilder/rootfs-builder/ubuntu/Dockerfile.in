@@ -31,7 +31,7 @@ RUN apt-get update && \
     musl-tools \
     protobuf-compiler \
     xz-utils && \
-    ( go_version="@GOVERSION@" && [ "${go_version}" = "" ] || ( \
+    ( go_version="@GO_VERSION@" && [ "${go_version}" = "" ] || ( \
     echo "Installing go @GO_VERSION@" && curl -sSL "https://golang.org/dl/go@GO_VERSION@.linux-@ARCH@.tar.gz" | tar -xz -C /usr/local ))
 # aarch64 requires this name -- link for all
 RUN if [ ! -f "/usr/bin/$(uname -m)-linux-musl-gcc" ]; then ln -s /usr/bin/musl-gcc "/usr/bin/$(uname -m)-linux-musl-gcc"; fi
