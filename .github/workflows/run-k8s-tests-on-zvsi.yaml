@@ -78,3 +78,61 @@ jobs:
         run: |
           bash tests/integration/kubernetes/gha-run.sh cleanup-zvsi || true
           ${HOME}/script/post_action.sh ubuntu-2204
+
+  run-k8s-tests-coco-nontee:
+    strategy:
+      fail-fast: false
+      matrix:
+        vmm:
+          - qemu
+        snapshotter:
+          - nydus
+        pull-type:
+          - guest-pull
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_REGISTRY: ${{ inputs.registry }}
+      DOCKER_REPO: ${{ inputs.repo }}
+      DOCKER_TAG: ${{ inputs.tag }}
+      GH_PR_NUMBER: ${{ inputs.pr-number }}
+      KATA_HOST_OS: ${{ matrix.host_os }}
+      KATA_HYPERVISOR: ${{ matrix.vmm }}
+      KUBERNETES: "k3s"
+      PULL_TYPE: ${{ matrix.pull-type }}
+      SNAPSHOTTER: ${{ matrix.snapshotter }}
+      USING_NFD: "false"
+    steps:
+      - name: Take a pre-action for self-hosted runner
+        run: ${HOME}/script/pre_action.sh ubuntu-2204
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit-hash }}
+          fetch-depth: 0
+
+      - name: Rebase atop of the latest target branch
+        run: |
+          ./tests/git-helper.sh "rebase-atop-of-the-latest-target-branch"
+        env:
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+
+      - name: Deploy k3s
+        run: bash tests/integration/kubernetes/gha-run.sh deploy-k8s
+
+      - name: Deploy Snapshotter
+        timeout-minutes: 5
+        run: bash tests/integration/kubernetes/gha-run.sh deploy-snapshotter
+
+      - name: Deploy Kata
+        timeout-minutes: 10
+        run: bash tests/integration/kubernetes/gha-run.sh deploy-kata-zvsi
+
+      - name: Run tests
+        timeout-minutes: 60
+        run: bash tests/integration/kubernetes/gha-run.sh run-tests
+
+      - name: Take a post-action
+        if: always()
+        run: |
+          bash tests/integration/kubernetes/gha-run.sh cleanup-zvsi || true
+          ${HOME}/script/post_action.sh ubuntu-2204
