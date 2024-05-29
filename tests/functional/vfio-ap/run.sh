@@ -11,10 +11,8 @@ set -o pipefail
 set -o errtrace
 
 script_path=$(dirname "$0")
-source "${script_path}/../../lib/common.bash"
-
 registry_port="${REGISTRY_PORT:-5000}"
-registry_name="kata-registry"
+registry_name="local-registry"
 container_engine="${container_engine:-docker}"
 dev_base="/dev/vfio"
 sys_bus_base="/sys/bus/ap"
@@ -26,19 +24,9 @@ test_category="[kata][vfio-ap][containerd]"
 
 trap cleanup EXIT
 
-# Check if the given function exists.
-function_exists() {
-    [[ "$(type -t $1)" == "function" ]]
-}
-
-if ! function_exists get_test_version; then
-    source "${script_path}/../../.ci/lib.sh"
-fi
-
 # Prevent the program from exiting on error
 trap - ERR
-image_version=$(get_test_version "docker_images.registry_ibm.version")
-registry_image=$(get_test_version "docker_images.registry_ibm.registry_url"):"${image_version}"
+registry_image="registry:2.8.3"
 
 setup_config_file() {
     local target_item=$1
@@ -92,9 +80,25 @@ cleanup() {
     # Release devices from vfio-ap
     echo 0x$(printf -- 'f%.0s' {1..64}) | sudo tee /sys/bus/ap/apmask > /dev/null
     echo 0x$(printf -- 'f%.0s' {1..64}) | sudo tee /sys/bus/ap/aqmask > /dev/null
+
+    # Remove files used for testing
+    rm -f ${script_path}/zcrypttest
 }
 
 validate_env() {
+    if [ ! -f ${HOME}/script/zcrypttest ]; then
+        echo "zcrypttest not found" >&2
+        exit 1
+    fi
+    if [ ! -f ${HOME}/script/ctr ]; then
+        echo "ctr not found" >&2
+        exit 1
+    else
+       if ! ${HOME}/script/ctr run --help | grep privileged-without-host-devices > /dev/null 2>&1; then
+           echo "'--privileged-without-host-devices' not featured for ctr" >&2
+           exit 1
+       fi
+    fi
     necessary_commands=( "${container_engine}" "ctr" "lszcrypt" )
     for cmd in ${necessary_commands[@]}; do
         if ! which ${cmd} > /dev/null 2>&1; then
@@ -115,8 +119,9 @@ validate_env() {
 }
 
 build_test_image() {
+    cp ${HOME}/script/zcrypttest ${script_path}
     ${container_engine} rmi -f ${test_image_name} > /dev/null 2>&1
-    ${container_engine} build -t ${test_image_name} ${script_path}
+    ${container_engine} build --no-cache -t ${test_image_name} ${script_path}
     ${container_engine} push ${test_image_name}
 }
 
@@ -175,16 +180,19 @@ create_mediated_device() {
 run_test() {
     local run_index=$1
     local test_message=$2
+    local extra_cmd=${3:-}
     local start_time=$(date +"%Y-%m-%d %H:%M:%S")
     # Set time granularity to a second for capturing the log
     sleep 1
     # Check if the APQN is identified in a container
     sudo ctr image pull --plain-http ${test_image_name}
 
-    [ -n "${dev_index}" ] && \
-        sudo ctr run --runtime io.containerd.run.kata.v2 --rm \
+    if [ -n "${dev_index}" ]; then
+        sudo ${HOME}/script/ctr run --privileged --privileged-without-host-devices \
+        --runtime io.containerd.run.kata.v2 --rm \
         --device ${dev_base}/${dev_index} ${test_image_name} test \
-        bash -c "lszcrypt ${_APID}.${_APQI} | grep ${APQN}"
+        bash -c "lszcrypt ${_APID}.${_APQI} | grep ${APQN} ${extra_cmd}"
+    fi
     if [ $? -eq 0 ]; then
         echo "ok ${run_index} ${test_category} ${test_message}"
     else
@@ -196,7 +204,7 @@ run_test() {
 
 run_tests() {
     setup_hotplug
-    run_test "1" "Test can assign a CEX device inside the guest via VFIO-AP Hotplug"
+    run_test "1" "Test can assign a CEX device inside the guest via VFIO-AP Hotplug" "&& zcrypttest -a -v"
 
     setup_coldplug
     run_test "2" "Test can assign a CEX device inside the guest via VFIO-AP Coldplug"
