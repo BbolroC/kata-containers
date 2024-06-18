@@ -114,7 +114,7 @@ func (q *qemuS390x) appendConsole(ctx context.Context, devices []govmmQemu.Devic
 		return devices, fmt.Errorf("Failed to append console %v", err)
 	}
 
-	q.kernelParams = append(q.kernelParams, Param{"console", "ttysclp0"})
+	//q.kernelParams = append(q.kernelParams, Param{"console", "ttysclp0"})
 
 	serial := govmmQemu.SerialDevice{
 		Driver:        virtioSerialCCW,
