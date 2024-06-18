@@ -85,7 +85,7 @@ EOF
 		return 1
 	fi
 
-	cmdline="${kernel_params} panic=1 scsi_mod.scan=none swiotlb=262144"
+	cmdline="${kernel_params} panic=1 scsi_mod.scan=none swiotlb=262144 agent.debug_console agent.debug_console_vport=1026"
 	parmfile="$(mktemp --suffix=-cmdline)"
 	echo "${cmdline}" > "${parmfile}"
 	chmod 600 "${parmfile}"
