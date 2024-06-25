@@ -226,11 +226,11 @@ function kbs_k8s_deploy() {
 	fi
 
 	echo "::group::Clone the kbs sources"
-	git clone --depth 1 "${repo}" "$COCO_TRUSTEE_DIR"
-	pushd "$COCO_TRUSTEE_DIR"
-	git fetch --depth=1 origin "${version}"
-	git checkout FETCH_HEAD -b kbs_$$
-	popd
+	git clone -b enable-kbs-for-s390x --depth 1 https://github.com/BbolroC/trustee.git "$COCO_TRUSTEE_DIR"
+	#pushd "$COCO_TRUSTEE_DIR"
+	#git fetch --depth=1 origin "${version}"
+	#git checkout FETCH_HEAD -b kbs_$$
+	#popd
 	echo "::endgroup::"
 
 	pushd "${COCO_KBS_DIR}/config/kubernetes/"
