@@ -451,6 +451,9 @@ fn init_attestation_components(logger: &Logger, config: &AgentConfig) -> Result<
         return Ok(());
     }
 
+    // Export an environment variable RUST_LOG to debug for all components
+    env::set_var("RUST_LOG", "debug");
+
     debug!(logger, "spawning attestation-agent process {}", AA_PATH);
     launch_process(
         logger,
