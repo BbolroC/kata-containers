@@ -237,7 +237,7 @@ function kbs_k8s_deploy() {
 
 	# Tests should fill kbs resources later, however, the deployment
 	# expects at least one secret served at install time.
-	echo "somesecret" > overlays/key.bin
+	echo "somesecret" > overlays/$(uname -m)/key.bin
 
 	echo "::group::Update the kbs container image"
 	install_kustomize
