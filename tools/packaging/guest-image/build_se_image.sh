@@ -91,7 +91,7 @@ EOF
 	chmod 600 "${parmfile}"
 
 	[ -n "${HKD_PATH:-}" ] || (echo >&2 "No host key document specified." && return 1)
-	cert_list=($(ls -1 $HKD_PATH))
+	cert_list=($(ls -1 $HKD_PATH/HKD-*.crt))
 	declare hkd_options
 	eval "for cert in ${cert_list[*]}; do
 		hkd_options+=\"--host-key-document=\\\"\$HKD_PATH/\$cert\\\" \"
