@@ -6,6 +6,7 @@
 
 # This file contains common functions that
 # are being used by our metrics and integration tests
+set -x
 
 this_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export repo_root_dir="$(cd "${this_script_dir}/../" && pwd)"

@@ -1,13 +1,13 @@
 on:
-  schedule:
-    - cron:  '0 23 * * 0'
+  push:
+    branches:
+      - drop-clone_tests_repo
 
 name: Docs URL Alive Check
 jobs:
   test:
     runs-on: ubuntu-20.04
     # don't run this action on forks
-    if: github.repository_owner == 'kata-containers'
     env:
       target_branch: ${{ github.base_ref }}
     steps:

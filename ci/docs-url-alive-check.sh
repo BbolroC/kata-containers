@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
+set -x
 
 cidir=$(dirname "$0")
 source "${cidir}/../tests/common.bash"
