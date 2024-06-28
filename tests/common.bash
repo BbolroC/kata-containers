@@ -809,7 +809,7 @@ function run_docs_url_alive_check()
 	# Make sure we have the targeting branch
 	git remote set-branches --add origin "${branch}"
 	git fetch -a
-	bash "$this_script_dir/static-checks.sh" --docs --all "$kata_repo"
+	bash "$this_script_dir/static-checks.sh" --docs --all "github.com/BbolroC/kata-containers"
 }
 
 function run_get_pr_changed_file_details()
