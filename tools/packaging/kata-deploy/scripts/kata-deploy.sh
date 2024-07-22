@@ -104,6 +104,8 @@ function get_container_runtime() {
 
 	if echo "$runtime" | grep -qE "cri-o"; then
 		echo "cri-o"
+	elif kubectl get node $NODE_NAME -o jsonpath='{.metadata.labels}' | grep -q microk8s; then
+		echo "microk8s"
 	elif echo "$runtime" | grep -qE 'containerd.*-k3s'; then
 		if host_systemctl is-active --quiet rke2-agent; then
 			echo "rke2-agent"
@@ -313,7 +315,7 @@ function configure_cri_runtime() {
 	crio)
 		configure_crio
 		;;
-	containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker)
+	containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker | microk8s)
 		configure_containerd "$1"
 		;;
 	esac
@@ -555,7 +557,7 @@ function cleanup_cri_runtime() {
 	crio)
 		cleanup_crio
 		;;
-	containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker)
+	containerd | k3s | k3s-agent | rke2-agent | rke2-server | k0s-controller | k0s-worker | microk8s)
 		cleanup_containerd
 		;;
 	esac
@@ -675,6 +677,9 @@ function main() {
 		# k0s will automatically pick up these files and adds these in containerd configuration imports list.
 		containerd_conf_file="/etc/containerd/kata-containers.toml"
 		touch "$containerd_conf_file"
+	elif [ "$runtime" == "microk8s" ]; then
+		containerd_conf_file="/etc/containerd/containerd.toml"
+		containerd_conf_file_backup="${containerd_conf_file}.bak"
 	else
 		# runtime == containerd
 		if [ ! -f "$containerd_conf_file" ] && [ -d $(dirname "$containerd_conf_file") ] && \
@@ -690,7 +695,7 @@ function main() {
 	fi
 
 	# only install / remove / update if we are dealing with CRIO or containerd
-	if [[ "$runtime" =~ ^(crio|containerd|k3s|k3s-agent|rke2-agent|rke2-server|k0s-worker|k0s-controller)$ ]]; then
+	if [[ "$runtime" =~ ^(crio|containerd|k3s|k3s-agent|rke2-agent|rke2-server|k0s-worker|k0s-controller|microk8s)$ ]]; then
 		if [ "$runtime" != "crio" ]; then
 			containerd_snapshotter_version_check
 			snapshotter_handler_mapping_validation_check

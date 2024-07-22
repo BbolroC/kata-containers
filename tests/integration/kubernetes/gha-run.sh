@@ -232,6 +232,7 @@ function deploy_kata() {
 		k0s) kubectl_retry apply -k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/k0s" ;;
 		k3s) kubectl_retry apply -k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/k3s" ;;
 		rke2) kubectl_retry apply -k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/rke2" ;;
+		microk8s) kubectl_retry apply -k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/microk8s" ;;
 		*) kubectl_retry apply -f "${tools_dir}/packaging/kata-deploy/kata-deploy/base/kata-deploy.yaml"
 	esac
 
@@ -409,6 +410,10 @@ function cleanup_kata_deploy() {
 		rke2)
 			deploy_spec="-k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/rke2""
 			cleanup_spec="-k "${tools_dir}/packaging/kata-deploy/kata-cleanup/overlays/rke2""
+			;;
+		microk8s)
+			deploy_spec="-k "${tools_dir}/packaging/kata-deploy/kata-deploy/overlays/microk8s""
+			cleanup_spec="-k "${tools_dir}/packaging/kata-deploy/kata-cleanup/overlays/microk8s""
 			;;
 		*)
 			deploy_spec="-f "${tools_dir}/packaging/kata-deploy/kata-deploy/base/kata-deploy.yaml""
