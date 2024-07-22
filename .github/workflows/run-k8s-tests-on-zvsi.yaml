@@ -31,7 +31,7 @@ jobs:
           - devmapper
           - nydus
         k8s:
-          - k3s
+          - microk8s
         include:
           - snapshotter: devmapper
             pull-type: default
@@ -52,7 +52,7 @@ jobs:
       GH_PR_NUMBER: ${{ inputs.pr-number }}
       KATA_HOST_OS: "ubuntu"
       KATA_HYPERVISOR: ${{ matrix.vmm }}
-      KUBERNETES: "k3s"
+      KUBERNETES: ${{ matrix.k8s }}
       PULL_TYPE: ${{ matrix.pull-type }}
       SNAPSHOTTER: ${{ matrix.snapshotter }}
       USING_NFD: ${{ matrix.using-nfd }}
