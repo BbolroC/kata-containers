@@ -24,7 +24,7 @@ on:
 
 jobs:
   kata-payload:
-    runs-on: s390x
+    runs-on: s390x-test
     steps:
       - name: Take a pre-action for self-hosted runner
         run: ${HOME}/script/pre_action.sh ubuntu-2204

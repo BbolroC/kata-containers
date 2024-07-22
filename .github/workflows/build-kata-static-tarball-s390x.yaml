@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-asset:
-    runs-on: s390x
+    runs-on: s390x-test
     strategy:
       matrix:
         asset:
@@ -88,7 +88,7 @@ jobs:
           if-no-files-found: error
 
   build-asset-boot-image-se:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: build-asset
     steps:
       - name: Take a pre-action for self-hosted runner
@@ -133,7 +133,7 @@ jobs:
           if-no-files-found: error
 
   create-kata-tarball:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: [build-asset, build-asset-boot-image-se]
     steps:
       - name: Take a pre-action for self-hosted runner

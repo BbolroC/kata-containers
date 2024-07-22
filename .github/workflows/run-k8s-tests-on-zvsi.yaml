@@ -43,7 +43,7 @@ jobs:
             using-nfd: false
             deploy-cmd: deploy-snapshotter
             vmm: qemu-coco-dev
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       DOCKER_REGISTRY: ${{ inputs.registry }}
       DOCKER_REPO: ${{ inputs.repo }}
@@ -76,7 +76,7 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target-branch }}
 
       - name: Deploy ${{ matrix.k8s }}
-        run: bash tests/integration/kubernetes/gha-run.sh deploy-k8s
+        run: sleep 90 && bash tests/integration/kubernetes/gha-run.sh deploy-k8s
 
       - name: Configure the ${{ matrix.snapshotter }} snapshotter
         run: bash tests/integration/kubernetes/gha-run.sh ${{ matrix.deploy-cmd }}
