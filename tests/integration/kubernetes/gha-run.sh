@@ -78,6 +78,10 @@ EOF
 			containerd_config_file="/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl"
 			sudo cp /var/lib/rancher/k3s/agent/etc/containerd/config.toml "${containerd_config_file}"
 			;;
+		microk8s)
+			containerd_config_file="/var/snap/microk8s/current/args/containerd-template.toml"
+			sudo cp /var/snap/microk8s/current/args/containerd.toml "${containerd_config_file}"
+			;;
 		*) >&2 echo "${KUBERNETES} flavour is not supported"; exit 2 ;;
 	esac
 
@@ -93,26 +97,38 @@ EOF
 		k3s)
 			sudo sed -i -e 's/snapshotter = "overlayfs"/snapshotter = "devmapper"/g' "${containerd_config_file}"
 			sudo systemctl restart k3s ;;
+		microk8s)
+			sudo sed -i -e 's/snapshotter = "overlayfs"/snapshotter = "devmapper"/g' "${containerd_config_file}"
+			sudo systemctl daemon-reload
+			sudo systemctl restart snap.microk8s.daemon-containerd.service ;;
 		*) >&2 echo "${KUBERNETES} flavour is not supported"; exit 2 ;;
 	esac
 
 	sleep 60s
 	sudo cat "${containerd_config_file}"
 
-	if [ "${KUBERNETES}" = 'k3s' ]
-	then
-		local ctr_dm_status
-		local result
+	case "${KUBERNETES}" in
+		k3s)
+			containerd_socket="/run/k3s/containerd/containerd.sock"
+			;;
+		microk8s)
+			containerd_socket="/var/snap/microk8s/common/run/containerd.sock"
+			;;
+		*) >&2 echo "${KUBERNETES} flavour is not supported"; exit 2 ;;
+	esac
 
-		ctr_dm_status=$(sudo ctr \
-			--address '/run/k3s/containerd/containerd.sock' \
-			plugins ls |\
-			awk '$2 ~ /^devmapper$/ { print $0 }' || true)
+	# Check if the devmapper snapshotter is configured
+	local ctr_dm_status
+	local result
 
-		result=$(echo "$ctr_dm_status" | awk '{print $4}' || true)
+	ctr_dm_status=$(sudo ctr \
+		--address "${containerd_socket}" \
+		plugins ls |\
+		awk '$2 ~ /^devmapper$/ { print $0 }' || true)
 
-		[ "$result" = 'ok' ] || die "k3s containerd device mapper not configured: '$ctr_dm_status'"
-	fi
+	result=$(echo "$ctr_dm_status" | awk '{print $4}' || true)
+
+	[ "$result" = 'ok' ] || die "${KUBERNETES} containerd device mapper not configured: '$ctr_dm_status'"
 
 	info "devicemapper (DM) devices"
 	sudo dmsetup ls --tree
