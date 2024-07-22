@@ -224,6 +224,37 @@ function deploy_k0s() {
 	sudo chown ${USER}:${USER} ~/.kube/config
 }
 
+function deploy_microk8s() {
+	# Check if snap is installed
+	if ! command -v snap; then
+		sudo apt update
+		sudo apt install -y snapd
+	fi
+
+	# Install microk8s
+	sudo snap install microk8s --classic --channel=latest/edge
+
+	# Configure microk8s
+	mkdir -p ${HOME}/.kube
+	sudo usermod -a -G microk8s $(whoami)
+	sudo microk8s enable dns storage
+	sudo microk8s config > ~/.kube/config
+	sudo chown -f -R $(whoami) ~/.kube
+	sudo microk8s status --wait-ready
+
+	# Ensure that the same version of kubectl is installed
+	local k8s_version=$(snap info microk8s | grep latest/edge | grep -v tracking | awk '{ print $2 }')
+	sudo rm -f /usr/local/bin/kubectl
+	curl -LO "https://dl.k8s.io/release/${k8s_version}/bin/linux/$(uname -m)/kubectl"
+	sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+	rm -f kubectl
+
+	# Final check
+	kubectl version
+	kubectl get node
+	kubectl get all -A
+}
+
 function deploy_k3s() {
 	curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 
@@ -341,6 +372,7 @@ function deploy_k8s() {
 		k0s) deploy_k0s ;;
 		k3s) deploy_k3s ;;
 		rke2) deploy_rke2 ;;
+		microk8s) deploy_microk8s ;;
 		*) >&2 echo "${KUBERNETES} flavour is not supported"; exit 2 ;;
 	esac
 
