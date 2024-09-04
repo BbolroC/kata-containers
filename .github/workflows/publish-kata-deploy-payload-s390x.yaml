@@ -24,7 +24,7 @@ on:
 
 jobs:
   kata-payload:
-    runs-on: s390x
+    runs-on: s390x-test
     steps:
       - uses: actions/checkout@v4
         with:

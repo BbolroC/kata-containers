@@ -28,38 +28,17 @@ jobs:
       fail-fast: false
       matrix:
         snapshotter:
-          - overlayfs
-          - devmapper
           - nydus
         vmm:
-          - qemu
-          - qemu-runtime-rs
           - qemu-coco-dev
         k8s:
           - k3s
         include:
-          - snapshotter: devmapper
-            pull-type: default
-            using-nfd: true
-            deploy-cmd: configure-snapshotter
           - snapshotter: nydus
             pull-type: guest-pull
             using-nfd: false
             deploy-cmd: deploy-snapshotter
-        exclude:
-          - snapshotter: overlayfs
-            vmm: qemu
-          - snapshotter: overlayfs
-            vmm: qemu-coco-dev
-          - snapshotter: devmapper
-            vmm: qemu-runtime-rs
-          - snapshotter: devmapper
-            vmm: qemu-coco-dev
-          - snapshotter: nydus
-            vmm: qemu
-          - snapshotter: nydus
-            vmm: qemu-runtime-rs
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       DOCKER_REGISTRY: ${{ inputs.registry }}
       DOCKER_REPO: ${{ inputs.repo }}
