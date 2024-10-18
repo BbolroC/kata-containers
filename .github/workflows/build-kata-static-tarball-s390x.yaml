@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-asset:
-    runs-on: s390x
+    runs-on: s390x-test
     permissions:
       contents: read
       packages: write
@@ -33,10 +33,10 @@ jobs:
       matrix:
         asset:
           - agent
-          - coco-guest-components
+          #- coco-guest-components
           - kernel
-          - kernel-confidential
-          - pause-image
+          #- kernel-confidential
+          #- pause-image
           - qemu
           - virtiofsd
     env:
@@ -111,15 +111,15 @@ jobs:
           if-no-files-found: error
 
   build-asset-rootfs:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: build-asset
     strategy:
       matrix:
         asset:
           - rootfs-image
-          - rootfs-image-confidential
-          - rootfs-initrd
-          - rootfs-initrd-confidential
+          #- rootfs-image-confidential
+          #- rootfs-initrd
+          #- rootfs-initrd-confidential
     steps:
       - name: Login to Kata Containers quay.io
         if: ${{ inputs.push-to-registry == 'yes' }}
@@ -173,49 +173,53 @@ jobs:
           retention-days: 15
           if-no-files-found: error
 
-  build-asset-boot-image-se:
-    runs-on: s390x
-    needs: [build-asset, build-asset-rootfs]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Rebase atop of the latest target branch
-        run: |
-          ./tests/git-helper.sh "rebase-atop-of-the-latest-target-branch"
-        env:
-          TARGET_BRANCH: ${{ inputs.target-branch }}
-
-      - name: get-artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: kata-artifacts-s390x-*${{ inputs.tarball-suffix }}
-          path: kata-artifacts
-          merge-multiple: true
-
-      - name: Place a host key document
-        run: |
-          mkdir -p "host-key-document"
-          cp "${CI_HKD_PATH}" "host-key-document"
-        env:
-          CI_HKD_PATH: ${{ secrets.CI_HKD_PATH }}
-
-      - name: Build boot-image-se
-        run: |
-          ./tests/gha-adjust-to-use-prebuilt-components.sh kata-artifacts "boot-image-se"
-          make boot-image-se-tarball
-          build_dir=$(readlink -f build)
-          sudo cp -r "${build_dir}" "kata-build"
-          sudo chown -R $(id -u):$(id -g) "kata-build"
-        env:
-          HKD_PATH: "host-key-document"
-
-      - name: store-artifact boot-image-se
-        uses: actions/upload-artifact@v4
-        with:
-          name: kata-artifacts-s390x${{ inputs.tarball-suffix }}
-          path: kata-build/kata-static-boot-image-se.tar.xz
-          retention-days: 1
-          if-no-files-found: error
+#  build-asset-boot-image-se:
+#    runs-on: s390x
+#    needs: build-asset
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Rebase atop of the latest target branch
+#        run: |
+#          ./tests/git-helper.sh "rebase-atop-of-the-latest-target-branch"
+#        env:
+#          TARGET_BRANCH: ${{ inputs.target-branch }}
+#
+#      - name: get-artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          pattern: kata-artifacts-s390x-*${{ inputs.tarball-suffix }}
+#          path: kata-artifacts
+#          merge-multiple: true
+#
+#      - name: Place a host key document
+#        run: |
+#          mkdir -p "host-key-document"
+#          cp "${CI_HKD_PATH}" "host-key-document"
+#        env:
+#          CI_HKD_PATH: ${{ secrets.CI_HKD_PATH }}
+#
+#      - name: Build boot-image-se
+#        run: |
+#          base_dir=tools/packaging/kata-deploy/local-build/
+#          cp -r kata-artifacts ${base_dir}/build
+#          # Skip building dependant artifacts of boot-image-se-tarball
+#          # because we already have them from the previous build
+#          sed -i 's/\(^boot-image-se-tarball:\).*/\1/g' ${base_dir}/Makefile
+#          make boot-image-se-tarball
+#          build_dir=$(readlink -f build)
+#          sudo cp -r "${build_dir}" "kata-build"
+#          sudo chown -R $(id -u):$(id -g) "kata-build"
+#        env:
+#          HKD_PATH: "host-key-document"
+#
+#      - name: store-artifact boot-image-se
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: kata-artifacts-s390x${{ inputs.tarball-suffix }}
+#          path: kata-build/kata-static-boot-image-se.tar.xz
+#          retention-days: 1
+#          if-no-files-found: error
 
   build-asset-shim-v2:
     runs-on: s390x
@@ -275,8 +279,9 @@ jobs:
           if-no-files-found: error
 
   create-kata-tarball:
-    runs-on: s390x
-    needs: [build-asset, build-asset-rootfs, build-asset-boot-image-se, build-asset-shim-v2]
+    runs-on: s390x-test
+    #needs: [build-asset, build-asset-boot-image-se]
+    needs: build-asset-shim-v2
     steps:
       - uses: actions/checkout@v4
         with:
