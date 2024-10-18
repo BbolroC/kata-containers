@@ -91,7 +91,7 @@ EOF
 	# Check if the "devmapper" plugin section exists in the file
 	if grep -q 'plugins."io.containerd.snapshotter.v1.devmapper"' "${containerd_config_file}"; then
 	    echo "devmapper section found. Updating pool_name and base_image_size..."
-	    sed -i '/\[plugins."io.containerd.snapshotter.v1.devmapper"\]/,/\[plugins\./ {
+	    sudo sed -i '/\[plugins."io.containerd.snapshotter.v1.devmapper"\]/,/\[plugins\./ {
 	        s/pool_name = ".*"/pool_name = "contd-thin-pool"/
 	        s/base_image_size = ".*"/base_image_size = "4096MB"/
 	    }' "${containerd_config_file}"
