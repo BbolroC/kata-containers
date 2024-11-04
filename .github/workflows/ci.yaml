@@ -74,18 +74,18 @@ jobs:
 #      commit-hash: ${{ inputs.commit-hash }}
 #      target-branch: ${{ inputs.target-branch }}
 
-  publish-kata-deploy-payload-s390x:
-    needs: build-kata-static-tarball-s390x
-    uses: ./.github/workflows/publish-kata-deploy-payload-s390x.yaml
-    with:
-      tarball-suffix: -${{ inputs.tag }}
-      registry: ghcr.io
-      #repo: ${{ github.repository_owner }}/kata-deploy-ci
-      repo: bbolroc/kata-deploy-ci
-      tag: ${{ inputs.tag }}-s390x
-      commit-hash: ${{ inputs.commit-hash }}
-      target-branch: ${{ inputs.target-branch }}
-    secrets: inherit
+#  publish-kata-deploy-payload-s390x:
+#    needs: build-kata-static-tarball-s390x
+#    uses: ./.github/workflows/publish-kata-deploy-payload-s390x.yaml
+#    with:
+#      tarball-suffix: -${{ inputs.tag }}
+#      registry: ghcr.io
+#      #repo: ${{ github.repository_owner }}/kata-deploy-ci
+#      repo: bbolroc/kata-deploy-ci
+#      tag: ${{ inputs.tag }}-s390x
+#      commit-hash: ${{ inputs.commit-hash }}
+#      target-branch: ${{ inputs.target-branch }}
+#    secrets: inherit
 
 #  publish-kata-deploy-payload-ppc64le:
 #    needs: build-kata-static-tarball-ppc64le
@@ -188,7 +188,7 @@ jobs:
   run-k8s-tests-on-zvsi:
     #if: ${{ inputs.skip-test != 'yes' }}
     #needs: [publish-kata-deploy-payload-s390x, build-and-publish-tee-confidential-unencrypted-image]
-    needs: publish-kata-deploy-payload-s390x
+    needs: run-cri-containerd-tests-s390x
     uses: ./.github/workflows/run-k8s-tests-on-zvsi.yaml
     with:
       registry: ghcr.io
@@ -229,15 +229,14 @@ jobs:
 #      commit-hash: ${{ inputs.commit-hash }}
 #      target-branch: ${{ inputs.target-branch }}
 #
-#  run-cri-containerd-tests-s390x:
-#    if: ${{ inputs.skip-test != 'yes' }}
-#    needs: build-kata-static-tarball-s390x
-#    uses: ./.github/workflows/run-cri-containerd-tests-s390x.yaml
-#    with:
-#      tarball-suffix: -${{ inputs.tag }}
-#      commit-hash: ${{ inputs.commit-hash }}
-#      target-branch: ${{ inputs.target-branch }}
-#
+  run-cri-containerd-tests-s390x:
+    needs: build-kata-static-tarball-s390x
+    uses: ./.github/workflows/run-cri-containerd-tests-s390x.yaml
+    with:
+      tarball-suffix: -${{ inputs.tag }}
+      commit-hash: ${{ inputs.commit-hash }}
+      target-branch: ${{ inputs.target-branch }}
+
 #  run-cri-containerd-tests-ppc64le:
 #    if: ${{ inputs.skip-test != 'yes' }}
 #    needs: build-kata-static-tarball-ppc64le

@@ -222,7 +222,7 @@ jobs:
 #          if-no-files-found: error
 
   build-asset-shim-v2:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: [build-asset, build-asset-rootfs]
     steps:
       - name: Login to Kata Containers quay.io
