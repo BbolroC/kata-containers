@@ -1,6 +1,8 @@
 name: Kata Containers CI (manually triggered)
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - basic-s390x-ci
 
 jobs:
   kata-containers-ci-on-push:
@@ -12,7 +14,7 @@ jobs:
       target-branch: ${{ github.ref_name }}
     secrets: inherit
 
-  build-checks:
-    uses: ./.github/workflows/build-checks.yaml
-    with:
-      instance: ubuntu-22.04
+#  build-checks:
+#    uses: ./.github/workflows/build-checks.yaml
+#    with:
+#      instance: ubuntu-22.04

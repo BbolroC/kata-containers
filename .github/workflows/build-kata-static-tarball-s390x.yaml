@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-asset:
-    runs-on: s390x
+    runs-on: s390x-test
     permissions:
       contents: read
       packages: write
@@ -110,7 +110,7 @@ jobs:
           if-no-files-found: error
 
   build-asset-rootfs:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: build-asset
     strategy:
       matrix:
@@ -173,7 +173,7 @@ jobs:
           if-no-files-found: error
 
   build-asset-boot-image-se:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: [build-asset, build-asset-rootfs]
     steps:
       - uses: actions/checkout@v4
@@ -233,7 +233,7 @@ jobs:
           name: kata-artifacts-s390x-${{ matrix.asset}}${{ inputs.tarball-suffix }}
 
   build-asset-shim-v2:
-    runs-on: s390x
+    runs-on: s390x-test
     needs: [build-asset, build-asset-rootfs, remove-rootfs-binary-artifacts]
     steps:
       - name: Login to Kata Containers quay.io
@@ -290,7 +290,7 @@ jobs:
           if-no-files-found: error
 
   create-kata-tarball:
-    runs-on: s390x
+    runs-on: s390x-test
     needs:
       - build-asset
       - build-asset-rootfs

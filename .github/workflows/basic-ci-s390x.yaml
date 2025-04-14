@@ -23,7 +23,7 @@ jobs:
       matrix:
         containerd_version: ['active']
         vmm: ['qemu', 'qemu-runtime-rs']
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       CONTAINERD_VERSION: ${{ matrix.containerd_version }}
       GOPATH: ${{ github.workspace }}
@@ -64,7 +64,7 @@ jobs:
       matrix:
         containerd_version: ['active']
         vmm: ['qemu-runtime-rs']
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       CONTAINERD_VERSION: ${{ matrix.containerd_version }}
       GOPATH: ${{ github.workspace }}
@@ -104,7 +104,7 @@ jobs:
       matrix:
         containerd_version: ['lts', 'active']
         vmm: ['qemu']
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       CONTAINERD_VERSION: ${{ matrix.containerd_version }}
       GOPATH: ${{ github.workspace }}
@@ -146,7 +146,7 @@ jobs:
       fail-fast: false
       matrix:
         vmm: ['qemu']
-    runs-on: s390x-large
+    runs-on: s390x-test
     env:
       KATA_HYPERVISOR: ${{ matrix.vmm }}
     steps:
