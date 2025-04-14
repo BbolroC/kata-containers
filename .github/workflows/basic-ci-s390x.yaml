@@ -88,7 +88,7 @@ jobs:
       - name: get-kata-tarball
         uses: actions/download-artifact@v4
         with:
-          name: kata-static-tarball-s390x{{ inputs.tarball-suffix }}
+          name: kata-static-tarball-s390x${{ inputs.tarball-suffix }}
           path: kata-artifacts
 
       - name: Install kata
@@ -128,7 +128,7 @@ jobs:
       - name: get-kata-tarball
         uses: actions/download-artifact@v4
         with:
-          name: kata-static-tarball-s390x{{ inputs.tarball-suffix }}
+          name: kata-static-tarball-s390x${{ inputs.tarball-suffix }}
           path: kata-artifacts
 
       - name: Install kata
@@ -167,7 +167,7 @@ jobs:
       - name: get-kata-tarball
         uses: actions/download-artifact@v4
         with:
-          name: kata-static-tarball-s390x{{ inputs.tarball-suffix }}
+          name: kata-static-tarball-s390x${{ inputs.tarball-suffix }}
           path: kata-artifacts
 
       - name: Install kata
