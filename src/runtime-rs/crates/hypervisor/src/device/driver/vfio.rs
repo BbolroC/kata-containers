@@ -114,6 +114,9 @@ pub enum VfioDeviceType {
 
     /// mediated VFIO device type
     Mediated,
+
+    /// mediated VFIO-AP device type
+    MediatedAp,
 }
 
 // DeviceVendorClass represents a PCI device's deviceID, vendorID and classID
@@ -261,6 +264,12 @@ impl VfioDevice {
             ..Default::default()
         };
 
+        // for example:
+        // VfioDevice { device_id: "badd2ecb843163d", attach_count: 0, bus_mode: PCI, driver_type: "vfio-pci",
+        // config: VfioConfig { host_path: "/dev/vfio/0", dev_type: "c", hostdev_prefix: "vfio_device", virt_path: None },
+        // devices: [], device_options: [], port: NoPort, bus: "", allocated: false }
+        info!(sl!(), "bbolroc: vfio_device: {:?}", vfio_device);
+
         vfio_device
             .initialize_vfio_device()
             .context("initialize vfio device failed.")?;
@@ -343,6 +352,10 @@ impl VfioDevice {
                     .get_sysfs_device(sysfs_dev)
                     .context("get sysfs device failed")?;
 
+                if dev_sys.contains("vfio_ap") {
+                    return Ok((None, dev_sys, VfioDeviceType::MediatedAp));
+                }
+
                 let dev_bdf = if let Some(dev_s) = get_mediated_device_bdf(dev_sys.clone()) {
                     get_device_bdf(dev_s)
                 } else {
@@ -372,29 +385,36 @@ impl VfioDevice {
         iommu_devs_path: PathBuf,
         device_name: &str,
     ) -> Result<HostDevice> {
+        // iommu_devs_path: /sys/kernel/iommu_groups/X/devices
+        // device_name: 94bf6049-11fa-4278-b464-da2c10447376
         let vfio_dev_details = self
             .get_vfio_device_details(device_name.to_owned(), iommu_devs_path)
             .context("get vfio device details failed")?;
 
         // It's safe as BDF really exists.
-        let dev_bdf = vfio_dev_details.0.unwrap();
-        let dev_vendor_class = self
-            .get_vfio_device_vendor_class(device_name)
-            .context("get property device and vendor failed")?;
+        if let Some(bdf) = vfio_dev_details.0 {
+            let dev_vendor_class = self
+                .get_vfio_device_vendor_class(device_name)
+                .context("get property device and vendor failed")?;
 
-        let parts: Vec<&str> = device_name.splitn(2, ':').collect();
-        let domain_part = parts.first().context("missing domain segment")?;
-
-        let vfio_dev = HostDevice {
-            domain: domain_part.to_string(),
-            bus_slot_func: dev_bdf.clone(),
-            device_vendor_class: Some(dev_vendor_class),
-            sysfs_path: vfio_dev_details.1,
-            vfio_type: vfio_dev_details.2,
-            ..Default::default()
-        };
-
-        Ok(vfio_dev)
+            let parts: Vec<&str> = device_name.splitn(2, ':').collect();
+            let domain_part = parts.first().context("missing domain segment")?;
+            let vfio_dev = HostDevice {
+                domain: domain_part.to_string(),
+                bus_slot_func: bdf.clone(),
+                device_vendor_class: Some(dev_vendor_class),
+                sysfs_path: vfio_dev_details.1,
+                vfio_type: vfio_dev_details.2,
+                ..Default::default()
+            };
+            Ok(vfio_dev)
+        } else {
+            Ok(HostDevice {
+                sysfs_path: vfio_dev_details.1,
+                vfio_type: vfio_dev_details.2,
+                ..Default::default()
+            })
+        }
     }
 
     // filter Host or PCI Bridges that are in the same IOMMU group as the
@@ -425,6 +445,9 @@ impl VfioDevice {
     }
 
     fn initialize_vfio_device(&mut self) -> Result<()> {
+        // VfioDevice { device_id: "badd2ecb843163d", attach_count: 0, bus_mode: PCI, driver_type: "vfio-pci",
+        // config: VfioConfig { host_path: "/dev/vfio/0", dev_type: "c", hostdev_prefix: "vfio_device", virt_path: None },
+        // devices: [], device_options: [], port: NoPort, bus: "", allocated: false }
         // host path: /dev/vfio/X
         let host_path = self.get_host_path();
         // vfio group: X
