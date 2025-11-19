@@ -485,6 +485,7 @@ function install_kata() {
 	fi
 
 	load_vhost_mods
+	enabling_hypervisor
 }
 
 # creates a new kata configuration.toml hard link that
