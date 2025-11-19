@@ -65,6 +65,11 @@ func (device *VFIODevice) Attach(ctx context.Context, devReceiver api.DeviceRece
 		}
 	}()
 
+	// for example:
+	// &{DriverOptions:map[] HostPath:/dev/vfio/0 ContainerPath:/dev/vfio/0 DevType:c ID:dded5ec9d739bd37 Major:246 Minor:0
+	// FileMode:-rw------- UID:0 GID:0 Pmem:false ReadOnly:false ColdPlug:false Port:bridge-port}
+	deviceLogger().Infof("bbolroc: device.DeviceInfo: %+v on Attach()", device.DeviceInfo)
+
 	// This work for IOMMUFD enabled kernels > 6.x
 	// In the case of IOMMUFD the device.HostPath will look like
 	// /dev/vfio/devices/vfio0
@@ -85,6 +90,14 @@ func (device *VFIODevice) Attach(ctx context.Context, devReceiver api.DeviceRece
 	for _, vfio := range device.VfioDevs {
 		// If vfio.Port is not set we bail out, users should set
 		// explicitly the port in the config file
+		// for example:
+		//	vfio = config.VFIODev{
+		//		ID:        "9f56b4524918461d",
+		//		SysfsDev:  "/sys/devices/vfio_ap/matrix/94bf6049-11fa-4278-b464-da2c10447376/",
+		//		Type:      config.VFIOAPDeviceMediatedType,
+		//		APDevices: ["05.001f"],
+		//		Port:      "bridge-port",
+		//	}
 		if vfio.Port == "" {
 			return fmt.Errorf("cold_plug_vfio= or hot_plug_vfio= port is not set for device %s (BridgePort | RootPort | SwitchPort)", vfio.BDF)
 		}
@@ -253,7 +266,7 @@ func GetVFIODetails(deviceFileName, iommuDevicesPath string) (deviceBDF, deviceS
 		deviceBDF = GetBDF(getMediatedBDF(deviceSysfsDev))
 	case config.VFIOAPDeviceMediatedType:
 		sysfsDevStr := filepath.Join(iommuDevicesPath, deviceFileName)
-		deviceSysfsDev, err = GetSysfsDev(sysfsDevStr)
+		deviceSysfsDev, err = GetSysfsDev(sysfsDevStr) // e.g., /sys/devices/vfio_ap/matrix/94bf6049-11fa-4278-b464-da2c10447376/
 	default:
 		err = fmt.Errorf("Incorrect tokens found while parsing vfio details: %s", deviceFileName)
 	}

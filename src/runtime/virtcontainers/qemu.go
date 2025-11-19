@@ -1858,6 +1858,9 @@ func (q *qemu) executeVFIODeviceAdd(device *config.VFIODev) error {
 }
 
 func (q *qemu) hotplugVFIODevice(ctx context.Context, device *config.VFIODev, op Operation) (err error) {
+	// device for example:
+	// &{ID:vfio-df1bde0050089fd30 BDF: SysfsDev:/sys/devices/vfio_ap/matrix/94bf6049-11fa-4278-b464-da2c10447376
+	// DevfsDev: VendorID: DeviceID: Class: Bus: GuestPciPath: Type:3 IsPCIe:false APDevices:[05.001f] Port:bridge-port HostPath:}
 	if err = q.qmpSetup(); err != nil {
 		return err
 	}

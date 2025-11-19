@@ -955,7 +955,10 @@ func (c *Container) createDevices(contConfig *ContainerConfig) error {
 	}
 
 	for _, info := range deviceInfos {
+		c.Logger().Infof("bbolroc: deviceInfos: %+v for createContainers", info)
 		dev, err := c.sandbox.devManager.NewDevice(info)
+		c.Logger().Infof("bbolroc: dev.ID: %+v after NewDevice()", dev.DeviceID())
+		c.Logger().Infof("bbolroc: dev.DeviceInfo: %+v after NewDevice()", dev.GetDeviceInfo())
 		if err != nil {
 			return err
 		}

@@ -269,6 +269,7 @@ func GetAllVFIODevicesFromIOMMUGroup(device config.DeviceInfo) ([]*config.VFIODe
 		if err != nil {
 			return nil, err
 		}
+		deviceLogger().Infof("bbolroc: deviceBDF: %+v, deviceSysfsDev: %+v, vfioDeviceType: %+v", deviceBDF, deviceSysfsDev, vfioDeviceType)
 		id := utils.MakeNameID("vfio", device.ID+strconv.Itoa(i), maxDevIDSize)
 
 		var vfio config.VFIODev
@@ -306,7 +307,7 @@ func GetAllVFIODevicesFromIOMMUGroup(device config.DeviceInfo) ([]*config.VFIODe
 			}
 
 		case config.VFIOAPDeviceMediatedType:
-			devices, err := GetAPVFIODevices(deviceSysfsDev)
+			devices, err := GetAPVFIODevices(deviceSysfsDev) // e.g., [05.001f]
 			if err != nil {
 				return nil, err
 			}

@@ -736,6 +736,10 @@ func (s *Sandbox) coldOrHotPlugVFIO(sandboxConfig *SandboxConfig) (bool, error) 
 
 	for cnt, container := range sandboxConfig.Containers {
 		for dev, device := range container.DeviceInfos {
+			// for example:
+			// {DriverOptions:map[] HostPath: ContainerPath:/dev/vfio/0 DevType:c ID: Major:246 Minor:0
+			// FileMode:-rw------- UID:0 GID:0 Pmem:false ReadOnly:false ColdPlug:false Port:<unknown PCIePort: >}
+			s.Logger().Infof("bbolroc: DeviceInfos[%d]: %+v", dev, device)
 			if deviceManager.IsVhostUserBlk(device) {
 				vhostUserBlkDevices = append(vhostUserBlkDevices, device)
 				continue
@@ -743,7 +747,7 @@ func (s *Sandbox) coldOrHotPlugVFIO(sandboxConfig *SandboxConfig) (bool, error) 
 			isVFIODevice := deviceManager.IsVFIODevice(device.ContainerPath)
 			if hotPlugVFIO && isVFIODevice {
 				device.ColdPlug = false
-				device.Port = sandboxConfig.HypervisorConfig.HotPlugVFIO
+				device.Port = sandboxConfig.HypervisorConfig.HotPlugVFIO	// bridge-port for vfio-ap
 				vfioDevices = append(vfioDevices, device)
 				sandboxConfig.Containers[cnt].DeviceInfos[dev].Port = sandboxConfig.HypervisorConfig.HotPlugVFIO
 				continue
@@ -2044,6 +2048,10 @@ func (s *Sandbox) HotplugAddDevice(ctx context.Context, device api.Device, devTy
 
 		// adding a group of VFIO devices
 		for _, dev := range vfioDevices {
+			// for example:
+			// &{ID:vfio-df1bde0050089fd30 BDF: SysfsDev:/sys/devices/vfio_ap/matrix/94bf6049-11fa-4278-b464-da2c10447376
+			// DevfsDev: VendorID: DeviceID: Class: Bus: GuestPciPath: Type:3 IsPCIe:false APDevices:[05.001f] Port:bridge-port HostPath:}
+			s.Logger().Infof("bbolroc: dev: %+v on HotplugAddDevice()", dev)
 			if _, err := s.hypervisor.HotplugAddDevice(ctx, dev, VfioDev); err != nil {
 				s.Logger().
 					WithFields(logrus.Fields{

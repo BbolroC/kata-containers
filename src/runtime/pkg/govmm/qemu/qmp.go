@@ -1222,6 +1222,9 @@ func (q *QMP) ExecutePCIVFIOMediatedDeviceAdd(ctx context.Context, devID, sysfsd
 
 // ExecuteAPVFIOMediatedDeviceAdd adds a VFIO mediated AP device to a QEMU instance using the device_add command.
 func (q *QMP) ExecuteAPVFIOMediatedDeviceAdd(ctx context.Context, sysfsdev string, devID string) error {
+	// driver: vfio-ap
+	// sysfsdev: /sys/devices/vfio_ap/matrix/94bf6049-11fa-4278-b464-da2c10447376
+	// id: vfio-77bce0f4045f56370
 	args := map[string]interface{}{
 		"driver":   VfioAP,
 		"sysfsdev": sysfsdev,
