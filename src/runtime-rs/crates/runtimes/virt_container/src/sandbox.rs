@@ -402,7 +402,8 @@ impl VirtSandbox {
         hypervisor_config: &HypervisorConfig,
         init_data: Option<String>,
     ) -> Result<Option<ProtectionDeviceConfig>> {
-        let available_protection = available_guest_protection()?;
+        //let available_protection = available_guest_protection()?;
+        let available_protection = GuestProtection::NoProtection;
         info!(
             sl!(),
             "sandbox: available protection: {:?}", available_protection
