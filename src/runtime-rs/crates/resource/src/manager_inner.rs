@@ -464,9 +464,16 @@ impl ResourceManagerInner {
                         continue;
                     }
 
+                    let rootfs_driver = self.hypervisor.hypervisor_config().await.boot_info.vm_rootfs_driver;
+                    let bus_type = if rootfs_driver.ends_with("ccw") {
+                        "ccw".to_string()
+                    } else {
+                        "pci".to_string()
+                    };
                     let dev_info = DeviceConfig::VfioCfg(VfioConfig {
                         host_path,
                         dev_type: "c".to_string(),
+                        bus_type,
                         hostdev_prefix: "vfio_device".to_owned(),
                         ..Default::default()
                     });

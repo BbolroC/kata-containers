@@ -33,6 +33,7 @@ pub const SYS_KERN_IOMMU_GROUPS: &str = "/sys/kernel/iommu_groups";
 pub const VFIO_PCI_DRIVER: &str = "vfio-pci";
 pub const DRIVER_MMIO_BLK_TYPE: &str = "mmioblk";
 pub const DRIVER_VFIO_PCI_TYPE: &str = "vfio-pci";
+pub const DRIVER_VFIO_AP_TYPE: &str = "vfio-ap";
 pub const MAX_DEV_ID_SIZE: usize = 31;
 
 const VFIO_PCI_DRIVER_NEW_ID: &str = "/sys/bus/pci/drivers/vfio-pci/new_id";
@@ -75,6 +76,7 @@ pub enum VfioBusMode {
     #[default]
     MMIO,
     PCI,
+    CCW,
 }
 
 impl VfioBusMode {
@@ -94,8 +96,12 @@ impl VfioBusMode {
 
     // driver_type used for kata-agent
     // (1) vfio-pci for add device handler,
-    // (2) mmioblk for add storage handler,
-    pub fn driver_type(mode: &str) -> &str {
+    // (2) vfio-ap for add ccw device handler,
+    // (3) mmioblk for add storage handler,
+    pub fn driver_type(bus_type: &str, mode: &str) -> &'static str {
+        if bus_type == "ccw" {
+            return DRIVER_VFIO_AP_TYPE;
+        }
         match mode {
             "b" => DRIVER_MMIO_BLK_TYPE,
             _ => DRIVER_VFIO_PCI_TYPE,
@@ -198,6 +204,9 @@ pub struct VfioConfig {
     /// device as block or char
     pub dev_type: String,
 
+    /// bus type: pci or ccw
+    pub bus_type: String,
+
     /// hostdev_prefix for devices, such as:
     /// (1) phisycial endpoint: "physical_nic_"
     /// (2) vfio mdev: "vfio_mdev_"
@@ -250,12 +259,19 @@ impl VfioDevice {
 
         // get bus mode and driver type based on the device type
         let dev_type = dev_info.dev_type.as_str();
-        let driver_type = VfioBusMode::driver_type(dev_type).to_owned();
+        let bus_type = dev_info.bus_type.as_str();
+        let driver_type = VfioBusMode::driver_type(bus_type, dev_type).to_owned();
+
+        let bus_mode = if bus_type == "ccw" {
+            VfioBusMode::CCW
+        } else {
+            VfioBusMode::PCI
+        };
 
         let mut vfio_device = Self {
             device_id,
             attach_count: 0,
-            bus_mode: VfioBusMode::PCI,
+            bus_mode,
             driver_type,
             config: dev_info.clone(),
             devices,
