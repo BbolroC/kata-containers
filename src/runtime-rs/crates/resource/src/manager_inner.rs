@@ -473,7 +473,7 @@ impl ResourceManagerInner {
                     let dev_info = DeviceConfig::VfioCfg(VfioConfig {
                         host_path,
                         dev_type: "c".to_string(),
-                        bus_type,
+                        bus_type: bus_type.clone(),
                         hostdev_prefix: "vfio_device".to_owned(),
                         ..Default::default()
                     });
@@ -485,8 +485,15 @@ impl ResourceManagerInner {
                     // vfio mode: vfio-pci and vfio-pci-gk for x86_64
                     // - vfio-pci, devices appear as VFIO character devices under /dev/vfio in container.
                     // - vfio-pci-gk, devices are managed by whatever driver in Guest kernel.
+                    // - vfio-ap, devices appear as VFIO character devices under /dev/vfio in container for ccw devices.
                     let vfio_mode = match self.toml_config.runtime.vfio_mode.as_str() {
-                        "vfio" => "vfio-pci".to_string(),
+                        "vfio" => {
+                            if bus_type == "ccw" {
+                                "vfio-ap".to_string()
+                            } else {
+                                "vfio-pci".to_string()
+                            }
+                        },
                         _ => "vfio-pci-gk".to_string(),
                     };
 
@@ -501,24 +508,24 @@ impl ResourceManagerInner {
                             ..Default::default()
                         };
 
-                        let vendor_class = device
-                            .devices
-                            .first()
-                            .unwrap()
-                            .device_vendor_class
-                            .as_ref()
-                            .unwrap()
-                            .get_vendor_class_id()
-                            .context("get vendor class failed")?;
-                        let device_info = Some(DeviceInfo {
-                            vendor_id: vendor_class.0.to_owned(),
-                            class_id: vendor_class.1.to_owned(),
-                            host_path: d.path().clone(),
-                        });
-                        devices.push(ContainerDevice {
-                            device_info,
-                            device: agent_device,
-                        });
+                        if let Some(device_vendor_class) = &device.devices.first().unwrap().device_vendor_class {
+                            let vendor_class = device_vendor_class.get_vendor_class_id()
+                                .context("get vendor class failed")?;
+                            let device_info = Some(DeviceInfo {
+                                vendor_id: vendor_class.0.to_owned(),
+                                class_id: vendor_class.1.to_owned(),
+                                host_path: d.path().clone(),
+                            });
+                            devices.push(ContainerDevice {
+                                device_info,
+                                device: agent_device,
+                            });
+                        } else {
+                            devices.push(ContainerDevice {
+                                device_info: None,
+                                device: agent_device,
+                            });
+                        }
                     }
                 }
                 _ => {

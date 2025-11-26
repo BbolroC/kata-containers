@@ -783,11 +783,14 @@ impl Qmp {
                 .set_read_timeout(Some(Duration::from_millis(DEFAULT_QMP_READ_TIMEOUT)))?;
         }
 
-        let pci_path = self
-            .get_device_by_qdev_id(hostdev_id)
-            .context("get device by qdev_id failed")?;
-
-        Ok(Some(pci_path))
+        if vfio_device_add.driver == "vfio-ap" {
+            return Ok(None)
+        } else {
+            let pci_path = self
+                .get_device_by_qdev_id(hostdev_id)
+                .context("get device by qdev_id failed")?;
+            return Ok(Some(pci_path))
+        }
     }
 
     pub fn qmp_stop(&mut self) -> Result<()> {
