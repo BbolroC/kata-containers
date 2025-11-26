@@ -759,6 +759,7 @@ impl QemuInner {
             // store the device to coldplug it later, on hypervisor launch
             self.devices.push(device.clone());
         }
+        info!(sl!(), "bbolroc: QemuInner::add_device() device added: {}", device);
         Ok(device)
     }
 

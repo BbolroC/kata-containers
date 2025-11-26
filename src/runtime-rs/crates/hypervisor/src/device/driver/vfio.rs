@@ -547,6 +547,7 @@ impl Device for VfioDevice {
             }
             Err(e) => {
                 self.decrease_attach_count().await?;
+                error!(sl!(), "bbolroc: failed to attach vfio device: {:?}", e);
                 unregister_pcie_device!(self, pcie_topo)?;
                 return Err(e);
             }
