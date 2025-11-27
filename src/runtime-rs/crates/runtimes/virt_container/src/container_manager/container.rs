@@ -204,6 +204,8 @@ impl Container {
         let devices_agent = annotate_container_devices(&mut spec, container_devices)
             .context("annotate container devices failed")?;
 
+        info!(sl!(), "bbolroc: devices_agent: {:?}", devices_agent);
+
         // update vcpus, mems and host cgroups
         let resources = self
             .resource_manager

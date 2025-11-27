@@ -508,6 +508,8 @@ impl ResourceManagerInner {
                             ..Default::default()
                         };
 
+                        info!(sl!(), "bbolroc: agent device: {:?}", agent_device);
+
                         if let Some(device_vendor_class) = &device.devices.first().unwrap().device_vendor_class {
                             let vendor_class = device_vendor_class.get_vendor_class_id()
                                 .context("get vendor class failed")?;
