@@ -431,6 +431,10 @@ impl VirtSandbox {
         init_data: Option<String>,
     ) -> Result<Option<ProtectionDeviceConfig>> {
         let available_protection = available_guest_protection()?;
+        if ! hypervisor_config.security_info.confidential_guest {
+            info!(sl!(), "confidential guest not configured, skipping protection device config");
+            return Ok(None);
+        }
         info!(
             sl!(),
             "sandbox: available protection: {:?}", available_protection
