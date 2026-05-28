@@ -16,11 +16,13 @@ use hypervisor::{
         DeviceConfig, DeviceType,
     },
     utils::uses_native_ccw_bus,
+    vfio_device::VfioDeviceType,
     BlockConfig, BlockDeviceAio, Hypervisor, VfioConfig,
 };
 use kata_types::mount::{kata_guest_sandbox_dir, Mount, KATA_EPHEMERAL_VOLUME_TYPE, SHM_DIR};
 use kata_types::{
     config::{hypervisor::TopologyConfigInfo, TomlConfig},
+    device::DRIVER_VFIO_AP_COLD_TYPE,
     mount::{adjust_rootfs_mounts, KATA_IMAGE_FORCE_GUEST_PULL},
 };
 use libc::NUD_PERMANENT;
@@ -567,79 +569,96 @@ impl ResourceManagerInner {
                     if let DeviceType::VfioModern(vfio_dev) = device_info.clone() {
                         info!(sl!(), "device info: {:?}", vfio_dev.lock().await);
                         let vfio_device = vfio_dev.lock().await;
-                        let guest_pci_path = vfio_device
-                            .config
-                            .guest_pci_path
-                            .clone()
-                            .context("VFIO device has no guest PCI path assigned")?;
-                        let host_bdf = vfio_device.device.primary.addr.to_string();
-                        info!(
-                            sl!(),
-                            "vfio device guest pci path: {:?}, host bdf: {:?}",
-                            guest_pci_path,
-                            &host_bdf
-                        );
 
-                        // vfio mode: vfio-pci and vfio-pci-gk for x86_64
-                        // - vfio-pci, devices appear as VFIO character devices under /dev/vfio in container.
-                        // - vfio-pci-gk, devices are managed by whatever driver in Guest kernel.
-                        // - vfio-ap, devices appear as VFIO character devices under /dev/vfio in container for ccw devices.
-                        let vfio_mode = match self.toml_config.runtime.vfio_mode.as_str() {
-                            "vfio" => {
-                                if bus_type == "ccw" {
-                                    "vfio-ap".to_string()
-                                } else {
-                                    "vfio-pci".to_string()
-                                }
-                            }
-                            _ => "vfio-pci-gk".to_string(),
-                        };
-                        let device_options = vec![format!("{}={}", host_bdf, guest_pci_path)];
-                        // The Go runtime sets the device Id to
-                        // filepath.Base(dev.ContainerPath), e.g. "vfio0".
-                        // The agent policy validates this with:
-                        //   i_vfio_device.id == concat("", ["vfio", suffix])
                         let group_num = d
                             .path()
                             .file_name()
                             .and_then(|n| n.to_str())
                             .unwrap_or_default()
                             .to_string();
-                        let agent_device = Device {
-                            id: group_num,
-                            container_path: d.path().display().to_string().clone(),
-                            field_type: vfio_mode,
-                            options: device_options,
-                            ..Default::default()
-                        };
 
-                        let device_info = Some(DeviceInfo {
-                            vendor_id: vfio_device
-                                .device
-                                .primary
-                                .vendor_id
+                        if vfio_device.device.device_type == VfioDeviceType::MediatedAp {
+                            // s390x VFIO-AP cold-plug: the AP queues are already present in
+                            // the VM, so use "vfio-ap-cold" to let the agent check device
+                            // existence rather than waiting for uevents that already fired.
+                            let agent_device = Device {
+                                id: group_num,
+                                container_path: d.path().display().to_string(),
+                                field_type: DRIVER_VFIO_AP_COLD_TYPE.to_string(),
+                                options: vfio_device.config.ap_devices.clone(),
+                                ..Default::default()
+                            };
+                            info!(
+                                sl!(),
+                                "vfio-ap cold-plugged agent device for agent: {:?}", agent_device
+                            );
+                            devices.push(ContainerDevice {
+                                device_info: None,
+                                device: agent_device,
+                            });
+                        } else {
+                            let guest_pci_path = vfio_device
+                                .config
+                                .guest_pci_path
                                 .clone()
-                                .unwrap_or_default(),
-                            class_id: format!(
-                                "{:#08x}",
-                                vfio_device.device.primary.class_code.unwrap_or_default()
-                            ),
-                            host_path: d.path().clone(),
-                        });
-                        info!(
-                            sl!(),
-                            "vfio device info for agent: {:?}",
-                            device_info.clone()
-                        );
-                        info!(
-                            sl!(),
-                            "agent device info for agent: {:?}",
-                            agent_device.clone()
-                        );
-                        devices.push(ContainerDevice {
-                            device_info,
-                            device: agent_device,
-                        });
+                                .context("VFIO device has no guest PCI path assigned")?;
+                            let host_bdf = vfio_device.device.primary.addr.to_string();
+                            info!(
+                                sl!(),
+                                "vfio device guest pci path: {:?}, host bdf: {:?}",
+                                guest_pci_path,
+                                &host_bdf
+                            );
+
+                            // vfio mode: vfio-pci and vfio-pci-gk for x86_64
+                            // - vfio-pci, devices appear as VFIO character devices under /dev/vfio in container.
+                            // - vfio-pci-gk, devices are managed by whatever driver in Guest kernel.
+                            let vfio_mode = match self.toml_config.runtime.vfio_mode.as_str() {
+                                "vfio" => "vfio-pci".to_string(),
+                                _ => "vfio-pci-gk".to_string(),
+                            };
+                            let device_options =
+                                vec![format!("{}={}", host_bdf, guest_pci_path)];
+                            // The Go runtime sets the device Id to
+                            // filepath.Base(dev.ContainerPath), e.g. "vfio0".
+                            // The agent policy validates this with:
+                            //   i_vfio_device.id == concat("", ["vfio", suffix])
+                            let agent_device = Device {
+                                id: group_num,
+                                container_path: d.path().display().to_string().clone(),
+                                field_type: vfio_mode,
+                                options: device_options,
+                                ..Default::default()
+                            };
+
+                            let device_info = Some(DeviceInfo {
+                                vendor_id: vfio_device
+                                    .device
+                                    .primary
+                                    .vendor_id
+                                    .clone()
+                                    .unwrap_or_default(),
+                                class_id: format!(
+                                    "{:#08x}",
+                                    vfio_device.device.primary.class_code.unwrap_or_default()
+                                ),
+                                host_path: d.path().clone(),
+                            });
+                            info!(
+                                sl!(),
+                                "vfio device info for agent: {:?}",
+                                device_info.clone()
+                            );
+                            info!(
+                                sl!(),
+                                "agent device info for agent: {:?}",
+                                agent_device.clone()
+                            );
+                            devices.push(ContainerDevice {
+                                device_info,
+                                device: agent_device,
+                            });
+                        }
                     } else {
                         // vfio mode: vfio-pci and vfio-pci-gk for x86_64
                         // - vfio-pci, devices appear as VFIO character devices under /dev/vfio in container.
