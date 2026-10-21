@@ -131,12 +131,6 @@ qemu_rootless_skip_reason() {
 				echo "rootless TDX QGS socket provisioning is pending"
 				return 0
 				;;
-			# IBM Secure Execution runners need /dev/uv to have scoped non-root
-			# access. Enable after the runner setup is in place.
-			qemu-se-runtime-rs)
-				echo "rootless IBM Secure Execution host access provisioning is pending"
-				return 0
-				;;
 		esac
 	fi
 
